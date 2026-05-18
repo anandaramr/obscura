@@ -1,30 +1,40 @@
-let files = [];
+let files = []
 
-init();
+init()
 
 async function init() {
-    const res = await fetch("/api/files");
-    files = await res.json();
-    renderGrids(files);
+    const res = await fetch("/api/files")
+    files = await res.json()
+    renderGrids(files)
 }
 
 function renderGrids(files) {
-    const grid = document.getElementById("grid");
+    const grid = document.getElementById("grid")
 
     for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const div = document.createElement("a")
+        const file = files[i]
+        const preview = document.createElement("a")
 
-        div.className = "grid-item"
-        div.href = `/api/files/${file.id}`
-        
-        if (file.type == "image") {
-            div.innerHTML = `<img src="/api/thumb/${file.id}" class="img" loading="lazy">`;
-        } else {
-            div.innerHTML = `<img src="/api/thumb/${file.id}" class="video" loading="lazy">`;
-            div.innerHTML += `<span class="play-icon">▶</span>`;
+        preview.className = "grid-item"
+        preview.href = `/api/files/${file.id}`
+
+        const media = document.createElement("img")
+        media.src = `/api/thumb/${file.id}`
+        media.loading = "lazy"
+        media.className = file.type === "image" ? "img" : "video"
+        preview.appendChild(media)
+
+        if (file.type != "image") {
+            const icon = document.createElement("span")
+            icon.className = "play-icon"
+
+            const iconImg = document.createElement("img")
+            iconImg.src = "/play_icon.svg"
+
+            icon.appendChild(iconImg)
+            preview.appendChild(icon)
         }
 
-        grid.appendChild(div);
+        grid.appendChild(preview)
     }
 }

@@ -10,6 +10,12 @@ body {
     font-family: Arial, sans-serif;
 }
 
+@media (prefers-color-scheme: light) {
+    body {
+        background-color: floralwhite;
+    }
+}
+
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -19,6 +25,7 @@ body {
 
 .grid-item {
     position: relative;
+    background-color: #000;
     overflow: hidden;
     border-radius: 12px;
     transition: transform 0.3s ease;
@@ -58,11 +65,17 @@ body {
 .play-icon {
     color: white;
     position: absolute;
-    left: 45%;
-    top: 45%;
+    inset: 0;
+    display: grid;
+    place-items: center;
     font-size: x-large;
     user-select: none;
     pointer-events: none;
     transition: transform 0.4s ease;
     opacity: 0.6;
+}
+
+.play-icon img {
+    width: 42px;
+    height: auto;
 }
