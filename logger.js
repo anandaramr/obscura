@@ -35,9 +35,12 @@ morgan.token('client-ip', (req) => {
 })
 
 morgan.token('device', (req) => {
-  const ua = req.headers['user-agent'] || ''
+  const ua = req.headers['user-agent']
+  if (!ua) return 'Unknown';
+  
   const name = ua.includes('Android') ? 'Android'
     : ua.includes('iPhone') ? 'iPhone'
+    : ua.includes('iPad') ? 'iPad'
     : ua.includes('Windows') ? 'Windows'
     : ua.includes('Macintosh') ? 'Mac'
     : ua.includes('Linux') ? 'Linux'
@@ -45,4 +48,4 @@ morgan.token('device', (req) => {
   return name
 })
 
-module.exports = () => morgan(':colored-method :url :colored-status :response-time ms — :client-ip [:device]')
+module.exports = () => morgan(':date[iso] - :colored-method :url :colored-status :response-time ms — :client-ip [:device]')
