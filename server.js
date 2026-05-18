@@ -99,7 +99,7 @@ app.get("/api/thumb/:id", async (req, res) => {
     }
 })
 
-const server = app.listen(PORT, ADDRESS, () => {
+app.listen(PORT, ADDRESS, () => {
     console.log(`Obscura running at ${ADDRESS}:${PORT}`)
     console.log(`Serving media from \x1b[36m${GALLERY_DIR}\x1b[0m\n`)
 
