@@ -44,7 +44,7 @@ let filesMap
 try {
     filesMap = scanDir(GALLERY_DIR)
 } catch (err) {
-    console.error(`\x1b[31m[Obscura Startup Error]:\x1b[0m ${error.message}`)
+    console.error(`\x1b[31m[Obscura Startup Error]:\x1b[0m ${err.message}`)
     console.error(`Please provide a valid media directory path.`)
     process.exit(1)
 }
@@ -78,14 +78,13 @@ app.get("/api/thumb/:id", async (req, res) => {
         }
 
         // handle animated .webp files
-        const metadata = await sharp(file.path).metadata()
-        if (metadata.pages === 1) return res.sendFile(file.path)
+        try {
+            const metadata = await sharp(file.path).metadata()
+            if (metadata.pages === 1) return res.sendFile(file.path)
+        } catch (err) { console.log(`Error reading metadata: ${err}`) }
     }
 
     const thumbPath = path.join(THUMBS_DIR, `${file.id}.jpg`)
-    if (fs.existsSync(thumbPath)) {
-        return res.sendFile(path.resolve(thumbPath))
-    }
 
     try {
         await limit(async () => {
