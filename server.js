@@ -46,7 +46,7 @@ const limit = pLimit(THUMB_LIMIT)
 
 const { error } = validateDirectory(GALLERY_DIR)
 if (error) {
-    console.error(`\x1b[31m[Obscura Startup Error]\x1b[0m ${error.message}`)
+    console.error(`\x1b[31m[Obscura Startup Error]\x1b[0m ${error}`)
     console.error(`Please provide a valid media directory path.`)
     process.exit(1)
 }
