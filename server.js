@@ -46,7 +46,7 @@ const limit = pLimit(THUMB_LIMIT)
 
 const { error } = validateDirectory(GALLERY_DIR)
 if (error) {
-    console.error(`\x1b[31m[Obscura Startup Error]:\x1b[0m ${error.message}`)
+    console.error(`\x1b[31m[Obscura Startup Error]\x1b[0m ${error.message}`)
     console.error(`Please provide a valid media directory path.`)
     process.exit(1)
 }
@@ -169,7 +169,12 @@ app.get("/api/thumb/:id", async (req, res) => {
     }
 })
 
-app.listen(PORT, ADDRESS, () => {
+app.listen(PORT, ADDRESS, (error) => {
+    if (error) {
+        console.error(`\x1b[31m[Obscura Startup Error]\x1b[0m ${error.message}`)
+        return
+    }
+
     console.log(`Obscura running at ${ADDRESS}:${PORT}`)
     console.log(`Serving media from \x1b[36m${GALLERY_DIR}\x1b[0m\n`)
 
