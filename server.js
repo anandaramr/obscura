@@ -172,7 +172,7 @@ app.get("/api/thumb/:id", async (req, res) => {
 app.listen(PORT, ADDRESS, (error) => {
     if (error) {
         console.error(`\x1b[31m[Obscura Startup Error]\x1b[0m ${error.message}`)
-        return
+        process.exit(1)
     }
 
     console.log(`Obscura running at ${ADDRESS}:${PORT}`)
