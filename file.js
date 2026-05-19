@@ -35,7 +35,8 @@ function scanDir(dir, filesMap = new Map()) {
                     path: fullPath,
                     type: IMAGE_EXTS.includes(ext) ? 'image' : 'video',
                     date: stat.mtime,
-                    size: stat.size
+                    size: stat.size,
+                    ext: ext
                 })
             }
         }

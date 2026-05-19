@@ -72,8 +72,14 @@ app.get("/api/thumb/:id", async (req, res) => {
     const file = filesMap.get(req.params.id)
     if (!file) return res.sendStatus(404)
 
-    if (file.type == "image" && file.size < THUMB_THRESHOLD) {
-        return res.sendFile(file.path)
+    if (file.type == "image" && file.ext !== '.gif' && file.size < THUMB_THRESHOLD) {
+        if (file.ext !== '.webp') {
+            return res.sendFile(file.path)
+        }
+
+        // handle animated .webp files
+        const metadata = await sharp(file.path).metadata()
+        if (metadata.pages === 1) return res.sendFile(file.path)
     }
 
     const thumbPath = path.join(THUMBS_DIR, `${file.id}.jpg`)
