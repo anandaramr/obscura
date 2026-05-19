@@ -2,16 +2,17 @@
 
 const express = require("express")
 const os = require("os")
+const chokidar = require("chokidar")
 const pLimit = require("p-limit").default
+
 require("dotenv").config({ quiet: true })
 
 const path = require("path")
-const sharp = require("sharp")
 const fs = require("fs")
-const ffmpegPath = require("ffmpeg-static")
-const { execFile } = require("child_process")
+const sharp = require("sharp")
+sharp.cache(false)
 
-const { scanDir } = require("./file")
+const { validateDirectory, parseFileMetadata, generateHash } = require("./file")
 const {
     DEFAULT_PORT,
     DEFAULT_ADDRESS,
@@ -22,12 +23,15 @@ const {
 } = require("./defaults")
 const logger = require("./logger")
 
+const { generateImageThumbnail, generateVideoThumbnail } = require("./thumbnail")
+const { insertSorted } = require("./utils")
+
 const app = express()
-app.use(express.static(path.join(__dirname, "public")))
 app.use(express.json())
 app.use(logger())
+app.use(express.static(path.join(__dirname, "public")))
 
-const GALLERY_DIR = process.argv[2] || process.env.GALLERY_DIR || DEFAULT_DIRECTORY
+const GALLERY_DIR = path.resolve(process.cwd(), process.argv[2] || process.env.GALLERY_DIR || DEFAULT_DIRECTORY)
 const ADDRESS = process.argv[3] || process.env.ADDRESS || DEFAULT_ADDRESS
 const PORT = process.argv[4] || process.env.PORT || DEFAULT_PORT
 
@@ -40,17 +44,64 @@ if (!fs.existsSync(THUMBS_DIR)) fs.mkdirSync(THUMBS_DIR, { recursive: true })
 
 const limit = pLimit(THUMB_LIMIT)
 
-let filesMap
-try {
-    filesMap = scanDir(GALLERY_DIR)
-} catch (err) {
-    console.error(`\x1b[31m[Obscura Startup Error]:\x1b[0m ${err.message}`)
+const { error } = validateDirectory(GALLERY_DIR)
+if (error) {
+    console.error(`\x1b[31m[Obscura Startup Error]:\x1b[0m ${error.message}`)
     console.error(`Please provide a valid media directory path.`)
     process.exit(1)
 }
 
+let filesMap = new Map()
+let sortedFiles = []
+
+const watcher = chokidar.watch(GALLERY_DIR, {
+    ignored: /(^|[\/\\])\../,
+    persistent: true,
+    ignoreInitial: false,
+})
+
+let clients = []
+let isBooting = true
+function broadcastToUsers(action, fileData) {
+    clients.forEach((client) => {
+        client.res.write(`data: ${JSON.stringify({ action, file: fileData })}\n\n`)
+    })
+}
+
+watcher.on("add", (filePath) => {
+    const fileData = parseFileMetadata(filePath)
+    if (!fileData) return
+
+    const isExisting = filesMap.has(fileData.id)
+    filesMap.set(fileData.id, fileData)
+
+    if (isExisting) return
+    const { id, name, type, date, size } = fileData
+    const fileDataToSend = { id, name, type, date, size }
+    insertSorted(sortedFiles, fileDataToSend, file => new Date(file.date).getTime())
+
+    if (isBooting) return
+    broadcastToUsers("add", fileDataToSend)
+})
+
+watcher.on('unlink', (filePath) => {
+    const fileId = generateHash(filePath)
+
+    if (filesMap.has(fileId)) {
+        filesMap.delete(fileId)
+        sortedFiles = sortedFiles.filter(file => file.id !== fileId)
+        broadcastToUsers('remove', { id: fileId })
+
+        const thumbPath = path.join(THUMBS_DIR, `${fileId}.jpg`)
+        fs.unlink(thumbPath, () => {}) 
+    }
+})
+
+watcher.on('ready', () => {
+    isBooting = false
+})
+
 app.get("/api/files", (req, res) => {
-    const sortedFiles = [...filesMap.values()].sort((a, b) => new Date(a.date) - new Date(b.date))
     res.json(
         sortedFiles.map(({ id, name, type, date, size }) => ({
             id,
@@ -68,12 +119,24 @@ app.get("/api/files/:id", (req, res) => {
     res.sendFile(file.path)
 })
 
+app.get('/api/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+
+    const clientId = Date.now()
+    clients.push({ id: clientId, res })
+    req.on('close', () => {
+        clients = clients.filter(client => client.id !== clientId)
+    })
+})
+
 app.get("/api/thumb/:id", async (req, res) => {
     const file = filesMap.get(req.params.id)
     if (!file) return res.sendStatus(404)
 
-    if (file.type == "image" && file.ext !== '.gif' && file.size < THUMB_THRESHOLD) {
-        if (file.ext !== '.webp') {
+    if (file.type == "image" && file.ext !== ".gif" && file.size < THUMB_THRESHOLD) {
+        if (file.ext !== ".webp") {
             return res.sendFile(file.path)
         }
 
@@ -81,7 +144,9 @@ app.get("/api/thumb/:id", async (req, res) => {
         try {
             const metadata = await sharp(file.path).metadata()
             if (metadata.pages === 1) return res.sendFile(file.path)
-        } catch (err) { console.log(`Error reading metadata: ${err}`) }
+        } catch (err) {
+            console.log(`Error reading metadata: ${err}`)
+        }
     }
 
     const thumbPath = path.join(THUMBS_DIR, `${file.id}.jpg`)
@@ -92,9 +157,9 @@ app.get("/api/thumb/:id", async (req, res) => {
             if (fs.existsSync(thumbPath)) return
 
             if (file.type === "image") {
-                await generateImageThumbnail(file, thumbPath)
+                await generateImageThumbnail(file, thumbPath, THUMB_SIZE)
             } else {
-                await generateVideoThumbnail(file, thumbPath)
+                await generateVideoThumbnail(file, thumbPath, THUMB_SIZE)
             }
         })
         res.sendFile(path.resolve(thumbPath))
@@ -119,35 +184,3 @@ app.listen(PORT, ADDRESS, () => {
 
     console.log("\n")
 })
-
-function generateVideoThumbnail(file, thumbPath) {
-    return new Promise((resolve, reject) => {
-        execFile(
-            ffmpegPath,
-            [
-                "-i",
-                file.path,
-                "-frames:v",
-                "1",
-                "-vf",
-                `scale=${THUMB_SIZE}:${THUMB_SIZE}:force_original_aspect_ratio=increase,crop=${THUMB_SIZE}:${THUMB_SIZE}:(iw-${THUMB_SIZE})/2:(ih-${THUMB_SIZE})/2`,
-                "-q:v",
-                "2",
-                thumbPath,
-            ],
-            (err) => {
-                if (err) {
-                    return reject(new Error(`ffmpeg error: ${err.message}`))
-                }
-                resolve()
-            },
-        )
-    })
-}
-
-async function generateImageThumbnail(file, thumbPath) {
-    await sharp(file.path, { animated: false, page: 0 })
-        .resize(THUMB_SIZE, THUMB_SIZE, { fit: "cover" })
-        .jpeg({ quality: 80 })
-        .toFile(thumbPath)
-}

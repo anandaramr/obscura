@@ -1,51 +1,45 @@
-const path = require('path')
-const fs = require('fs')
-const crypto = require('crypto')
+const path = require("path")
+const fs = require("fs")
+const crypto = require("crypto")
 
-const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic']
-const VIDEO_EXTS = ['.mp4', '.mov', '.avi', '.mkv', '.webm']
+const IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"]
+const VIDEO_EXTS = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
 
-function scanDir(dir, filesMap = new Map()) {
-    let results = []
-
-    const absolutePath = path.resolve(process.cwd(), dir)
-    if (!fs.existsSync(absolutePath)) {
-        throw new Error(`Directory does not exist: "${absolutePath}"`)
+function validateDirectory(absoluteDirPath) {
+    if (!path.isAbsolute(absoluteDirPath)) {
+        return { error: `Directory validation failed: not an absolute path` }
     }
-    
-    const stats = fs.statSync(absolutePath)
+    if (!fs.existsSync(absoluteDirPath)) {
+        return { error: `Directory validation failed: directory not found` }
+    }
+
+    const stats = fs.statSync(absoluteDirPath)
     if (!stats.isDirectory()) {
-        throw new Error(`Path is a file, not a directory: "${absolutePath}"`)
-    }
-    
-    const entries = fs.readdirSync(absolutePath, { withFileTypes: true })
-
-    for (const entry of entries) {
-        const fullPath = path.join(absolutePath, entry.name)
-
-        if (entry.isDirectory()) {
-            scanDir(fullPath, filesMap)
-        } else {
-            const ext = path.extname(entry.name).toLowerCase()
-            if ([ ...IMAGE_EXTS, ...VIDEO_EXTS ].includes(ext)) {
-                const stat = fs.statSync(fullPath)
-                results.push({
-                    id: crypto.createHash('md5').update(fullPath).digest('hex'),
-                    name: entry.name,
-                    path: fullPath,
-                    type: IMAGE_EXTS.includes(ext) ? 'image' : 'video',
-                    date: stat.mtime,
-                    size: stat.size,
-                    ext: ext
-                })
-            }
-        }
+        return { error: `Directory validation failed: not a directory` }
     }
 
-    for (const file of results) {
-        filesMap.set(file.id, file)
-    }
-    return filesMap
+    return {  }
 }
 
-module.exports = { scanDir }
+function parseFileMetadata(filePath) {
+    const basename = path.basename(filePath)
+    const ext = path.extname(basename).toLowerCase()
+    if (![...IMAGE_EXTS, ...VIDEO_EXTS].includes(ext)) return null
+
+    const stat = fs.statSync(filePath)
+    return {
+        id: crypto.createHash("md5").update(filePath).digest("hex"),
+        name: basename,
+        path: filePath,
+        type: IMAGE_EXTS.includes(ext) ? "image" : "video",
+        date: stat.mtime,
+        size: stat.size,
+        ext: ext,
+    }
+}
+
+function generateHash(fullPath) {
+    return crypto.createHash("md5").update(fullPath).digest("hex")
+}
+
+module.exports = { validateDirectory, parseFileMetadata, generateHash }
