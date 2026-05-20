@@ -2,6 +2,25 @@ let files = []
 let isShuffled = false
 let elementMap = new Map()
 
+const activeVideoCache = [];
+const MAX_CACHED_VIDEOS = 5; 
+
+function manageVideoCache(newVid) {
+    const index = activeVideoCache.indexOf(newVid);
+    if (index !== -1) {
+        activeVideoCache.splice(index, 1);
+    }
+    
+    console.log('adding to cache')
+    activeVideoCache.push(newVid);
+    if (activeVideoCache.length > MAX_CACHED_VIDEOS) {
+        const oldestVid = activeVideoCache.shift();
+        console.log('removing from cache')
+        oldestVid.removeAttribute('src');
+        oldestVid.load(); 
+    }
+}
+
 init()
 
 async function init() {
@@ -60,6 +79,40 @@ function insertGridItem(file, grid, prepend = false) {
         
         icon.appendChild(iconImg)
         preview.appendChild(icon)
+
+        const vid = document.createElement('video')
+        vid.preload = "none"
+        vid.classList.add("video-preview", "fade")
+        vid.muted = true
+        vid.loop = true
+        
+        preview.appendChild(vid)
+        
+        preview.onmouseenter = () => {
+            if (window.matchMedia("(min-width: 769px)").matches) {
+                if (!vid.src) {
+                    vid.src = `/api/files/${file.id}`
+                    vid.load()
+                }
+                
+                manageVideoCache(vid)
+
+                vid.classList.remove('fade')
+                media.classList.add('fade')
+                icon.classList.add('fade')
+
+                vid.play().catch(err => console.log("Play interrupted:", err))
+            }
+        }
+        
+        preview.onmouseleave = () => {
+            if (window.matchMedia("(min-width: 769px)").matches) {
+                vid.pause()
+                vid.classList.add('fade')
+                media.classList.remove('fade')
+                icon.classList.remove('fade')
+            }
+        }
     }
     
     if (prepend) {
