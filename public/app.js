@@ -12,8 +12,8 @@ async function init() {
     isShuffled = params.has("shuffle")
     const fileList = isShuffled ? shuffleArray(files) : files
     
-    updateShuffledState(isShuffled)
     renderGrids(fileList)
+    updateShuffledState(isShuffled)
 }
 
 function renderGrids(files) {
@@ -50,18 +50,18 @@ function insertGridItem(file, grid, prepend = false) {
     media.loading = "lazy"
     media.className = file.type === "image" ? "img" : "video"
     preview.appendChild(media)
-
+    
     if (file.type != "image") {
         const icon = document.createElement("span")
         icon.className = "play-icon"
-
+        
         const iconImg = document.createElement("img")
         iconImg.src = "/play_icon.svg"
-
+        
         icon.appendChild(iconImg)
         preview.appendChild(icon)
     }
-
+    
     if (prepend) {
         grid.prepend(preview)
     } else {
@@ -101,9 +101,11 @@ function updateShuffledState(newState) {
     
     if (newState) {
         button.classList.add('active')
+        button.classList.remove('inactive')
         url.searchParams.set('shuffle', '1')
     } else {
         button.classList.remove('active')
+        button.classList.add('inactive')
         url.searchParams.delete('shuffle')
     }
     history.replaceState({ shuffle: newState }, '', url)
