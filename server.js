@@ -78,7 +78,7 @@ watcher.on("add", (filePath) => {
     if (isExisting) return
     const { id, name, type, date, size } = fileData
     const fileDataToSend = { id, name, type, date, size }
-    insertSorted(sortedFiles, fileDataToSend, file => new Date(file.date).getTime())
+    insertSorted(sortedFiles, fileDataToSend, file => new Date(file.date).getTime(), (a, b) => b - a)
 
     if (isBooting) return
     broadcastToUsers("add", fileDataToSend)
@@ -143,7 +143,7 @@ app.get("/api/thumb/:id", async (req, res) => {
         // handle animated .webp files
         try {
             const metadata = await sharp(file.path).metadata()
-            if (metadata.pages === 1) return res.sendFile(file.path)
+            if (!metadata.pages || metadata.pages === 1) return res.sendFile(file.path)
         } catch (err) {
             console.log(`Error reading metadata: ${err}`)
         }
