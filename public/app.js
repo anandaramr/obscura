@@ -1,11 +1,19 @@
 let files = []
+let isShuffled = false
+let elementMap = new Map()
 
 init()
 
 async function init() {
     const res = await fetch("/api/files")
     files = await res.json()
-    renderGrids(files)
+
+    params = new URLSearchParams(window.location.search)
+    isShuffled = params.has("shuffle")
+    const fileList = isShuffled ? shuffleArray(files) : files
+    
+    updateShuffledState(isShuffled)
+    renderGrids(fileList)
 }
 
 function renderGrids(files) {
@@ -22,15 +30,15 @@ const eventSource = new EventSource("/api/events")
 eventSource.onmessage = (evt) => {
     const data = JSON.parse(evt.data)
     const grid = document.getElementById("grid")
-    
+
     if (data.action === "add") {
-        insertGridItem(data.file, grid)
-    } else if (data.action === 'remove') {
+        insertGridItem(data.file, grid, true)
+    } else if (data.action === "remove") {
         removeGridItem(data.file.id)
     }
 }
 
-function insertGridItem(file, grid) {
+function insertGridItem(file, grid, prepend = false) {
     const preview = document.createElement("a")
 
     preview.className = "grid-item"
@@ -54,11 +62,66 @@ function insertGridItem(file, grid) {
         preview.appendChild(icon)
     }
 
-    grid.appendChild(preview)
+    if (prepend) {
+        grid.prepend(preview)
+    } else {
+        grid.appendChild(preview)
+    }
+    elementMap.set(file.id, preview)
 }
 
 function removeGridItem(fileId) {
-    const grid = document.getElementById("grid")
-    const child = document.getElementById(fileId)
-    grid.removeChild(child)
+    const child = elementMap.get(fileId)
+    if (child) {
+        const grid = document.getElementById("grid")
+        grid.removeChild(child)
+        elementMap.delete(child)
+        files = files.filter((f) => f.id !== fileId)
+    }
+}
+
+function shuffleGrid() {
+    const shuffledIds = shuffleArray(files.map(f => f.id))
+    const grid = document.getElementById('grid')
+    grid.replaceChildren(...shuffledIds.map(id => elementMap.get(id)).filter(Boolean))
+    
+    updateShuffledState(true)
+}
+
+function unShuffleGrid() {
+    const grid = document.getElementById('grid')
+    grid.replaceChildren(...files.map(f => elementMap.get(f.id)).filter(Boolean))
+    updateShuffledState(false)
+}
+
+function updateShuffledState(newState) {
+    isShuffled = newState
+    const button = document.getElementById('shuffle-btn')
+    const url = new URL(window.location)
+    
+    if (newState) {
+        button.classList.add('active')
+        url.searchParams.set('shuffle', '1')
+    } else {
+        button.classList.remove('active')
+        url.searchParams.delete('shuffle')
+    }
+    history.replaceState({ shuffle: newState }, '', url)
+}
+
+function toggleShuffle() {
+    if (isShuffled) {
+        unShuffleGrid()
+    } else {
+        shuffleGrid()
+    }
+}
+
+function shuffleArray(array) {
+    let copy = [...array]
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[copy[i], copy[j]] = [copy[j], copy[i]]
+    }
+    return copy
 }

@@ -79,3 +79,35 @@ body {
     width: 42px;
     height: auto;
 }
+
+#shuffle-btn {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: none;
+
+    background: rgba(45, 43, 43, 0.15);
+    color: #fff;
+    font-size: 1.5rem;
+    backdrop-filter: blur(8px);
+    transition: background 0.8s ease;
+
+    cursor: pointer;
+    user-select: none;
+    z-index: 10;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    line-height: 1;
+
+    -webkit-tap-highlight-color: transparent;
+}
+
+#shuffle-btn.active {
+    background: rgba(255, 255, 255, 0.3);
+    color: #000;
+}
