@@ -1,45 +1,51 @@
 #!/usr/bin/env node
 
-const express = require("express")
-const os = require("os")
-const chokidar = require("chokidar")
-const pLimit = require("p-limit").default
+import express from "express"
+import os from "os"
+import chokidar from "chokidar"
+import pLimit from "p-limit"
 
-require("dotenv").config({ quiet: true })
+import dotenv from "dotenv"
+dotenv.config({ quiet: true })
 
-const path = require("path")
-const fs = require("fs")
-const sharp = require("sharp")
+import path from "path"
+import fs from "fs"
+import sharp from "sharp"
 sharp.cache(false)
 
-const { validateDirectory, parseFileMetadata, generateHash } = require("./file")
-const {
+import { validateDirectory, parseFileMetadata, generateHash } from "./file.js"
+import {
     DEFAULT_PORT,
     DEFAULT_ADDRESS,
     DEFAULT_DIRECTORY,
     DEFAULT_THUMB_LIMIT,
     DEFAULT_THUMB_SIZE,
     DEFAULT_THUMB_THRESHOLD,
-} = require("./defaults")
-const logger = require("./logger")
+} from "./defaults.js"
+import logger from "./logger.js"
 
-const { generateImageThumbnail, generateVideoThumbnail } = require("./thumbnail")
-const { insertSorted } = require("./utils")
+import { generateImageThumbnail, generateVideoThumbnail } from "./thumbnail.js"
+import { insertSorted } from "./utils.js"
+import type { ClientFileMetadata, FileMetaData, SseClient } from "./types.js"
+
+import { fileURLToPath } from 'url'
+const __filename = fileURLToPath(import.meta.url)
+const PROJECT_ROOT = path.resolve(path.dirname(__filename), "..")
 
 const app = express()
 app.use(express.json())
 app.use(logger())
-app.use(express.static(path.join(__dirname, "public")))
+app.use(express.static(path.join(PROJECT_ROOT, "public")))
 
 const GALLERY_DIR = path.resolve(process.cwd(), process.argv[2] || process.env.GALLERY_DIR || DEFAULT_DIRECTORY)
 const ADDRESS = process.argv[3] || process.env.ADDRESS || DEFAULT_ADDRESS
-const PORT = process.argv[4] || process.env.PORT || DEFAULT_PORT
+const PORT = parseInt(process.argv[4] || "") || parseInt(process.env.PORT || "") || DEFAULT_PORT
 
 const THUMB_THRESHOLD = process.env.THUMB_THRESHOLD || DEFAULT_THUMB_THRESHOLD
-const THUMB_SIZE = process.env.THUMB_SIZE || DEFAULT_THUMB_SIZE
-const THUMB_LIMIT = parseInt(process.env.THUMB_LIMIT) || DEFAULT_THUMB_LIMIT
+const THUMB_SIZE = parseInt(process.env.THUMB_SIZE || "") || DEFAULT_THUMB_SIZE
+const THUMB_LIMIT = parseInt(process.env.THUMB_LIMIT || "") || DEFAULT_THUMB_LIMIT
 
-const THUMBS_DIR = path.join(__dirname, "thumbs")
+const THUMBS_DIR = path.join(PROJECT_ROOT, "thumbs")
 if (!fs.existsSync(THUMBS_DIR)) fs.mkdirSync(THUMBS_DIR, { recursive: true })
 
 const limit = pLimit(THUMB_LIMIT)
@@ -52,7 +58,7 @@ if (error) {
 }
 
 let filesMap = new Map()
-let sortedFiles = []
+let sortedFiles: ClientFileMetadata[] = []
 
 const watcher = chokidar.watch(GALLERY_DIR, {
     ignored: /(^|[\/\\])\../,
@@ -60,9 +66,9 @@ const watcher = chokidar.watch(GALLERY_DIR, {
     ignoreInitial: false,
 })
 
-let clients = []
+let clients: SseClient[] = []
 let isBooting = true
-function broadcastToUsers(action, fileData) {
+function broadcastToUsers(action: string, fileData: Partial<ClientFileMetadata>) {
     clients.forEach((client) => {
         client.res.write(`data: ${JSON.stringify({ action, file: fileData })}\n\n`)
     })
@@ -78,26 +84,31 @@ watcher.on("add", (filePath) => {
     if (isExisting) return
     const { id, name, type, date, size } = fileData
     const fileDataToSend = { id, name, type, date, size }
-    insertSorted(sortedFiles, fileDataToSend, file => new Date(file.date).getTime(), (a, b) => b - a)
+    insertSorted(
+        sortedFiles,
+        fileDataToSend,
+        (file) => new Date(file.date).getTime(),
+        (a, b) => b - a,
+    )
 
     if (isBooting) return
     broadcastToUsers("add", fileDataToSend)
 })
 
-watcher.on('unlink', (filePath) => {
+watcher.on("unlink", (filePath) => {
     const fileId = generateHash(filePath)
 
     if (filesMap.has(fileId)) {
         filesMap.delete(fileId)
-        sortedFiles = sortedFiles.filter(file => file.id !== fileId)
-        broadcastToUsers('remove', { id: fileId })
+        sortedFiles = sortedFiles.filter((file) => file.id !== fileId)
+        broadcastToUsers("remove", { id: fileId })
 
         const thumbPath = path.join(THUMBS_DIR, `${fileId}.jpg`)
-        fs.unlink(thumbPath, () => {}) 
+        fs.unlink(thumbPath, () => {})
     }
 })
 
-watcher.on('ready', () => {
+watcher.on("ready", () => {
     isBooting = false
 })
 
@@ -119,15 +130,15 @@ app.get("/api/files/:id", (req, res) => {
     res.sendFile(file.path)
 })
 
-app.get('/api/events', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream')
-    res.setHeader('Cache-Control', 'no-cache')
-    res.setHeader('Connection', 'keep-alive')
+app.get("/api/events", (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream")
+    res.setHeader("Cache-Control", "no-cache")
+    res.setHeader("Connection", "keep-alive")
 
     const clientId = Date.now()
     clients.push({ id: clientId, res })
-    req.on('close', () => {
-        clients = clients.filter(client => client.id !== clientId)
+    req.on("close", () => {
+        clients = clients.filter((client) => client.id !== clientId)
     })
 })
 

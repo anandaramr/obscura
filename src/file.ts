@@ -1,11 +1,13 @@
-const path = require("path")
-const fs = require("fs")
-const crypto = require("crypto")
+import type { Result, FileMetaData } from './types.js'
+
+import path from "path"
+import fs from "fs"
+import crypto from "crypto"
 
 const IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"]
 const VIDEO_EXTS = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
 
-function validateDirectory(absoluteDirPath) {
+export function validateDirectory(absoluteDirPath: string): Result<void, string> {
     if (!path.isAbsolute(absoluteDirPath)) {
         return { error: `Directory validation failed: not an absolute path` }
     }
@@ -21,7 +23,7 @@ function validateDirectory(absoluteDirPath) {
     return {  }
 }
 
-function parseFileMetadata(filePath) {
+export function parseFileMetadata(filePath: string): FileMetaData | null {
     const basename = path.basename(filePath)
     const ext = path.extname(basename).toLowerCase()
     if (![...IMAGE_EXTS, ...VIDEO_EXTS].includes(ext)) return null
@@ -38,8 +40,6 @@ function parseFileMetadata(filePath) {
     }
 }
 
-function generateHash(fullPath) {
+export function generateHash(fullPath: string) {
     return crypto.createHash("md5").update(fullPath).digest("hex")
 }
-
-module.exports = { validateDirectory, parseFileMetadata, generateHash }

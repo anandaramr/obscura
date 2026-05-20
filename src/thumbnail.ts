@@ -1,9 +1,13 @@
-const { execFile } = require("child_process");
-const ffmpegPath = require("ffmpeg-static");
-const sharp = require("sharp");
+import type { FileMetaData } from "./types.js"
 
-function generateVideoThumbnail(file, thumbPath, thumbSize) {
-    return new Promise((resolve, reject) => {
+import { execFile } from "child_process"
+import sharp from "sharp"
+import ffmpeg from "ffmpeg-static"
+
+const ffmpegPath = typeof ffmpeg === "string" ? ffmpeg : (ffmpeg as any).default
+
+export function generateVideoThumbnail(file: FileMetaData, thumbPath: string, thumbSize: number) {
+    return new Promise<void>((resolve, reject) => {
         execFile(
             ffmpegPath,
             [
@@ -17,21 +21,19 @@ function generateVideoThumbnail(file, thumbPath, thumbSize) {
                 "2",
                 thumbPath,
             ],
-            (err) => {
+            (err, _stdout, _stderr) => {
                 if (err) {
                     return reject(new Error(`ffmpeg error: ${err.message}`))
                 }
                 resolve()
-            }
+            },
         )
     })
 }
 
-async function generateImageThumbnail(file, thumbPath, thumbSize) {
+export async function generateImageThumbnail(file: FileMetaData, thumbPath: string, thumbSize: number) {
     await sharp(file.path, { animated: false, page: 0 })
         .resize(thumbSize, thumbSize, { fit: "cover" })
         .jpeg({ quality: 80 })
         .toFile(thumbPath)
 }
-
-module.exports = { generateVideoThumbnail, generateImageThumbnail }
