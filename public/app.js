@@ -53,22 +53,47 @@ eventSource.onmessage = evt => {
     }
 }
 
-let currentPreview = null
+let previewWindow = []
 const observer = new IntersectionObserver(
     entries => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                stopPreview()
-                startPreview(entry.target)
+                onVisible(entry.target)
+            } else {
+                if (previewWindow.includes(entry.target)) {
+                    onEndOfVisibility(entry.target)
+                }
             }
         })
     },
     {
-        root: null,
-        rootMargin: '-30% 0px -65% 0px',
-        threshold: 0.1,
+        threshold: 1,
     },
 )
+
+let currentPreview = null
+function onVisible(preview) {
+    const vid = preview.getElementsByClassName('video-preview')[0]
+    previewWindow.push(preview)
+    previewWindow.sort((a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)
+
+    vid.onended = evt => {
+        const idx = previewWindow.indexOf(preview)
+        stopMobilePreview(idx)
+        startMobilePreview((idx + 1) % previewWindow.length)
+    }
+
+    if (!currentPreview) startMobilePreview(0)
+}
+
+function onEndOfVisibility(preview) {
+    const idx = previewWindow.indexOf(preview)
+    const isCurrentlyPlaying = currentPreview == preview
+
+    stopMobilePreview(idx)
+    previewWindow.splice(idx, 1)
+    if (isCurrentlyPlaying && previewWindow.length) startMobilePreview(idx % previewWindow.length)
+}
 
 function insertGridItem(file, grid, prepend = false) {
     const preview = document.createElement('a')
@@ -97,7 +122,7 @@ function insertGridItem(file, grid, prepend = false) {
         vid.preload = 'none'
         vid.classList.add('video-preview', 'fade')
         vid.muted = true
-        vid.loop = true
+        vid.loop = false
 
         preview.appendChild(vid)
 
@@ -120,31 +145,34 @@ function insertGridItem(file, grid, prepend = false) {
         grid.appendChild(preview)
     }
 
-    if (isMobileDevice()) observer.observe(preview)
+    if (isMobileDevice() && file.type === 'video') observer.observe(preview)
     elementMap.set(file.id, preview)
 }
 
 const VIDEO_CACHE_TTL = 60 * 1000
 let cacheTTLMap = new Map()
 
-function stopPreview() {
-    if (!currentPreview) return
-    const vid = currentPreview.getElementsByClassName('video-preview')[0]
-    const media = currentPreview.getElementsByTagName('img')[0]
-    const icon = currentPreview.getElementsByTagName('span')[0]
+function stopMobilePreview(idx) {
+    const preview = previewWindow[idx]
+    if (currentPreview != preview) return
 
-    stopVideoPreview(vid, currentPreview.id, media, icon)
+    const vid = preview.getElementsByClassName('video-preview')[0]
+    const media = preview.getElementsByClassName('video')[0]
+    const icon = preview.getElementsByClassName('play-icon')[0]
+
+    stopVideoPreview(vid, preview.id, media, icon)
     currentPreview = null
 }
 
-function startPreview(preview) {
+function startMobilePreview(idx) {
+    const preview = previewWindow[idx]
+    currentPreview = preview
+
     const vid = preview.getElementsByClassName('video-preview')[0]
     if (!vid) return
 
-    currentPreview = preview
     const media = preview.getElementsByTagName('img')[0]
     const icon = preview.getElementsByTagName('span')[0]
-
     startVideoPreview(vid, preview.id, media, icon)
 }
 
