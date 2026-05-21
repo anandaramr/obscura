@@ -16,24 +16,17 @@ const IMAGE_EXTS = [
     ".tiff",
     ".tif",
     ".avif",
-    ".bmp",
-    ".ico",
 ]
 
 const VIDEO_EXTS = [
     ".mp4",
     ".mov",
-    ".avi",
     ".mkv",
     ".webm",
     ".m4v",
     ".ts",
     ".mts",
     ".m2ts",
-    ".flv",
-    ".wmv",
-    ".3gp",
-    ".ogv",
 ]
 
 const ALWAYS_ANIMATED_EXTS = new Set([".gif"])
