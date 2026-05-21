@@ -41,7 +41,7 @@ const GALLERY_DIR = path.resolve(process.cwd(), process.argv[2] || process.env.G
 const ADDRESS = process.argv[3] || process.env.ADDRESS || DEFAULT_ADDRESS
 const PORT = parseInt(process.argv[4] || "") || parseInt(process.env.PORT || "") || DEFAULT_PORT
 
-const THUMB_THRESHOLD = process.env.THUMB_THRESHOLD || DEFAULT_THUMB_THRESHOLD
+const THUMB_THRESHOLD = parseInt(process.env.THUMB_THRESHOLD || "") || DEFAULT_THUMB_THRESHOLD
 const THUMB_SIZE = parseInt(process.env.THUMB_SIZE || "") || DEFAULT_THUMB_SIZE
 const THUMB_LIMIT = parseInt(process.env.THUMB_LIMIT || "") || DEFAULT_THUMB_LIMIT
 
@@ -57,7 +57,7 @@ if (error) {
     process.exit(1)
 }
 
-let filesMap = new Map()
+let filesMap = new Map<string, FileMetaData>()
 let sortedFiles: ClientFileMetadata[] = []
 
 const watcher = chokidar.watch(GALLERY_DIR, {
@@ -74,25 +74,25 @@ function broadcastToUsers(action: string, fileData: Partial<ClientFileMetadata>)
     })
 }
 
-watcher.on("add", (filePath) => {
-    const fileData = parseFileMetadata(filePath)
+watcher.on("add", async (filePath) => {
+    const fileData = await parseFileMetadata(filePath)
     if (!fileData) return
 
     const isExisting = filesMap.has(fileData.id)
     filesMap.set(fileData.id, fileData)
 
     if (isExisting) return
-    const { id, name, type, date, size } = fileData
-    const fileDataToSend = { id, name, type, date, size }
+    const { id, name, type, date, size, isAnimated } = fileData
+    const clientFileData = { id, name, type, date, size, isAnimated }
     insertSorted(
         sortedFiles,
-        fileDataToSend,
+        clientFileData,
         (file) => new Date(file.date).getTime(),
         (a, b) => b - a,
     )
 
     if (isBooting) return
-    broadcastToUsers("add", fileDataToSend)
+    broadcastToUsers("add", clientFileData)
 })
 
 watcher.on("unlink", (filePath) => {
@@ -113,15 +113,7 @@ watcher.on("ready", () => {
 })
 
 app.get("/api/files", (req, res) => {
-    res.json(
-        sortedFiles.map(({ id, name, type, date, size }) => ({
-            id,
-            name,
-            type,
-            date,
-            size,
-        })),
-    )
+    res.status(200).json(sortedFiles)
 })
 
 app.get("/api/files/:id", (req, res) => {
@@ -146,18 +138,8 @@ app.get("/api/thumb/:id", async (req, res) => {
     const file = filesMap.get(req.params.id)
     if (!file) return res.sendStatus(404)
 
-    if (file.type == "image" && file.ext !== ".gif" && file.size < THUMB_THRESHOLD) {
-        if (file.ext !== ".webp") {
-            return res.sendFile(file.path)
-        }
-
-        // handle animated .webp files
-        try {
-            const metadata = await sharp(file.path).metadata()
-            if (!metadata.pages || metadata.pages === 1) return res.sendFile(file.path)
-        } catch (err) {
-            console.log(`Error reading metadata: ${err}`)
-        }
+    if (shouldAvoidCaching(file)) {
+        return res.sendFile(file.path)
     }
 
     const thumbPath = path.join(THUMBS_DIR, `${file.id}.jpg`)
@@ -200,3 +182,7 @@ app.listen(PORT, ADDRESS, (error) => {
 
     console.log("\n")
 })
+
+function shouldAvoidCaching(file: FileMetaData) {
+    return file.type == "image" && (file.size < THUMB_THRESHOLD && !file.isAnimated)
+}

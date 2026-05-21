@@ -8,9 +8,10 @@ export interface FileMetaData {
     date: Date
     size: number
     ext: string
+    isAnimated: boolean
 }
 
-export type ClientFileMetadata = Pick<FileMetaData, "id" | "name" | "type" | "date" | "size">
+export type ClientFileMetadata = Pick<FileMetaData, "id" | "name" | "type" | "date" | "size" | "isAnimated">
 
 export interface SseClient {
     id: number
