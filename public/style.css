@@ -48,7 +48,7 @@ body {
 }
 
 .video {
-    opacity: 0.6;
+    filter: brightness(0.8);
 }
 
 .video-preview {
@@ -71,23 +71,18 @@ body {
     .grid-item:hover .img{
         transform: scale(1.08);
     }
-
-    .grid-item:hover .video {
-        transform: scale(0.93);
-    }
 }
 
 .play-icon {
     color: white;
     position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
+    right: 3%;
+    top: 3%;
     font-size: x-large;
     user-select: none;
     pointer-events: none;
-    transition: transform 0.4s ease;
-    opacity: 0.6;
+    transition: transform none;
+    filter: drop-shadow(0 0 10px #000);
 }
 
 .play-icon img {
@@ -102,12 +97,27 @@ body {
 
 @keyframes pulse {
   0%, 100% {
-    opacity: 0.6;
+    opacity: 0.8;
   }
 
   50% {
-    opacity: 0.2;
+    opacity: 0.4;
   }
+}
+
+.live-indicator {
+    color: white;
+    position: absolute;
+    right: 3%;
+    top: 3%;
+    font-size: medium;
+    font-weight: 700;
+    font-family: monospace;
+    text-shadow: #000 0 0 8px;
+    user-select: none;
+    pointer-events: none;
+    transition: transform 0.4s ease;
+    opacity: 0.8;
 }
 
 #shuffle-btn {

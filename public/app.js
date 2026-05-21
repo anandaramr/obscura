@@ -135,6 +135,23 @@ function insertGridItem(file, grid, prepend = false) {
                 stopVideoPreview(vid, file.id, media, icon)
             }
         }
+    } else if (file.isAnimated) {
+        const icon = document.createElement('span')
+        icon.className = 'live-indicator'
+        icon.innerText = "LIVE"
+        preview.appendChild(icon)
+
+        preview.onmouseenter = () => {
+            if (!isMobileDevice()) {
+                media.src = `/api/files/${file.id}`
+            }
+        }
+        
+        preview.onmouseleave = () => {
+            if (!isMobileDevice()) {
+                media.src = `/api/thumb/${file.id}`
+            }
+        }
     }
 
     if (prepend) {
@@ -181,6 +198,7 @@ function stopVideoPreview(vid, id, media, icon) {
     vid.classList.add('fade')
     media.classList.remove('fade')
     icon.classList.remove('blink')
+    icon.classList.remove('fade')
 }
 
 function startVideoPreview(vid, id, media, icon) {
@@ -189,6 +207,7 @@ function startVideoPreview(vid, id, media, icon) {
         'playing',
         () => {
             icon.classList.remove('blink')
+            icon.classList.add('fade')
         },
         { once: true }
     )
