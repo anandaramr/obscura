@@ -122,7 +122,7 @@ function insertGridItem(file, grid, prepend = false) {
         vid.preload = 'none'
         vid.classList.add('video-preview', 'fade')
         vid.muted = true
-        vid.loop = false
+        vid.loop = !isMobileDevice()
 
         preview.appendChild(vid)
 
