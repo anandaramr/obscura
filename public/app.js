@@ -2,9 +2,6 @@ let files = []
 let isShuffled = false
 let elementMap = new Map()
 
-const VIDEO_CACHE_TTL = 60 * 1000
-let cacheTTLMap = new Map()
-
 function onVideoPlay(fileId) {
     clearTimeout(cacheTTLMap.get(fileId))
     cacheTTLMap.delete(fileId)
@@ -56,6 +53,23 @@ eventSource.onmessage = evt => {
     }
 }
 
+let currentPreview = null
+const observer = new IntersectionObserver(
+    entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                stopPreview()
+                startPreview(entry.target)
+            }
+        })
+    },
+    {
+        root: null,
+        rootMargin: '-30% 0px -65% 0px',
+        threshold: 0.1,
+    },
+)
+
 function insertGridItem(file, grid, prepend = false) {
     const preview = document.createElement('a')
 
@@ -88,30 +102,14 @@ function insertGridItem(file, grid, prepend = false) {
         preview.appendChild(vid)
 
         preview.onmouseenter = () => {
-            if (window.matchMedia('(min-width: 769px)').matches) {
-                if (!vid.src) {
-                    vid.src = `/api/files/${file.id}`
-                    vid.load()
-                }
-
-                vid.classList.remove('fade')
-                media.classList.add('fade')
-                icon.classList.add('fade')
-
-                onVideoPlay(file.id)
-                vid.currentTime = 0
-                vid.play().catch(err => console.log('Play interrupted:', err))
+            if (!isMobileDevice()) {
+                startVideoPreview(vid, file.id, media, icon)
             }
         }
 
         preview.onmouseleave = () => {
-            if (window.matchMedia('(min-width: 769px)').matches) {
-                vid.pause()
-                onVideoPause(file.id, vid)
-
-                vid.classList.add('fade')
-                media.classList.remove('fade')
-                icon.classList.remove('fade')
+            if (!isMobileDevice()) {
+                stopVideoPreview(vid, file.id, media, icon)
             }
         }
     }
@@ -121,7 +119,61 @@ function insertGridItem(file, grid, prepend = false) {
     } else {
         grid.appendChild(preview)
     }
+
+    if (isMobileDevice()) observer.observe(preview)
     elementMap.set(file.id, preview)
+}
+
+const VIDEO_CACHE_TTL = 60 * 1000
+let cacheTTLMap = new Map()
+
+function stopPreview() {
+    if (!currentPreview) return
+    const vid = currentPreview.getElementsByClassName('video-preview')[0]
+    const media = currentPreview.getElementsByTagName('img')[0]
+    const icon = currentPreview.getElementsByTagName('span')[0]
+
+    stopVideoPreview(vid, currentPreview.id, media, icon)
+    currentPreview = null
+}
+
+function startPreview(preview) {
+    const vid = preview.getElementsByClassName('video-preview')[0]
+    if (!vid) return
+
+    currentPreview = preview
+    const media = preview.getElementsByTagName('img')[0]
+    const icon = preview.getElementsByTagName('span')[0]
+
+    startVideoPreview(vid, preview.id, media, icon)
+}
+
+function stopVideoPreview(vid, id, media, icon) {
+    vid.pause()
+    onVideoPause(id, vid)
+
+    vid.classList.add('fade')
+    media.classList.remove('fade')
+    icon.classList.remove('fade')
+}
+
+function startVideoPreview(vid, id, media, icon) {
+    if (!vid.src) {
+        vid.src = `/api/files/${id}`
+        vid.load()
+    }
+
+    vid.classList.remove('fade')
+    media.classList.add('fade')
+    icon.classList.add('fade')
+
+    onVideoPlay(id)
+    vid.currentTime = 0
+    vid.play().catch(err => console.log('Play interrupted:', err))
+}
+
+function isMobileDevice() {
+    return !window.matchMedia('(min-width: 769px)').matches
 }
 
 function removeGridItem(fileId) {
