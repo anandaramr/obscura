@@ -66,16 +66,14 @@ const observer = new IntersectionObserver(
             }
         })
     },
-    {
-        threshold: 1,
-    },
+    { threshold: 1 }
 )
 
 let currentPreview = null
 function onVisible(preview) {
     const vid = preview.getElementsByClassName('video-preview')[0]
     previewWindow.push(preview)
-    previewWindow.sort((a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)
+    previewWindow.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
 
     vid.onended = evt => {
         const idx = previewWindow.indexOf(preview)
@@ -179,13 +177,22 @@ function startMobilePreview(idx) {
 function stopVideoPreview(vid, id, media, icon) {
     vid.pause()
     onVideoPause(id, vid)
-
+    
     vid.classList.add('fade')
     media.classList.remove('fade')
-    icon.classList.remove('fade')
+    icon.classList.remove('blink')
 }
 
 function startVideoPreview(vid, id, media, icon) {
+    icon.classList.add('blink')
+    vid.addEventListener(
+        'playing',
+        () => {
+            icon.classList.remove('blink')
+        },
+        { once: true }
+    )
+
     if (!vid.src) {
         vid.src = `/api/files/${id}`
         vid.load()
@@ -193,7 +200,6 @@ function startVideoPreview(vid, id, media, icon) {
 
     vid.classList.remove('fade')
     media.classList.add('fade')
-    icon.classList.add('fade')
 
     onVideoPlay(id)
     vid.currentTime = 0
