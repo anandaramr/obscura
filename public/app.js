@@ -82,7 +82,7 @@ function insertGridItem(file, grid, prepend = false) {
     media.src = `/api/thumb/${file.id}`
     media.loading = 'lazy'
     media.className = file.type === 'image' ? 'img' : 'video'
-    media.onerror = async () => {
+    media.onerror = () => {
         if (!isServerReachable()) {
             retryQueue.push(() => {
                 media.src = media.src
@@ -178,6 +178,11 @@ function onVisible(preview) {
     addToPreviewWindow(preview)
     vid.onended = evt => {
         const idx = previewWindow.indexOf(preview)
+        if (previewWindow.length == 1) {
+            vid.play().catch(err => console.log(`Play interrupted: ${err}`))
+            return
+        }
+
         stopMobilePreview(idx)
         startMobilePreview((idx + 1) % previewWindow.length)
     }
