@@ -5,6 +5,16 @@ let elementMap = new Map()
 const VIDEO_CACHE_TTL = 60 * 1000
 let cacheTTLMap = new Map()
 
+let retryQueue = []
+window.addEventListener('connected', () => {
+    if (retryQueue.length) {
+        for (const retry of retryQueue) {
+            retry()
+        }
+        retryQueue = []
+    }
+})
+
 init()
 
 async function init() {
@@ -41,6 +51,10 @@ eventSource.onmessage = evt => {
     }
 }
 
+eventSource.onopen = () => {
+    window.dispatchEvent(new Event('connected'))
+}
+
 let previewWindow = []
 const observer = new IntersectionObserver(
     entries => {
@@ -68,6 +82,13 @@ function insertGridItem(file, grid, prepend = false) {
     media.src = `/api/thumb/${file.id}`
     media.loading = 'lazy'
     media.className = file.type === 'image' ? 'img' : 'video'
+    media.onerror = async () => {
+        if (!isServerReachable()) {
+            retryQueue.push(() => {
+                media.src = media.src
+            })
+        }
+    }
     preview.appendChild(media)
 
     if (file.type != 'image') {
@@ -126,6 +147,10 @@ function insertGridItem(file, grid, prepend = false) {
 
     if (isMobileDevice() && file.type === 'video') observer.observe(preview)
     elementMap.set(file.id, preview)
+}
+
+function isServerReachable() {
+    return eventSource.readyState === EventSource.OPEN
 }
 
 function onVideoPlay(fileId) {
