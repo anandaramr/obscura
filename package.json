@@ -1,21 +1,22 @@
 {
-  "name": "obscura",
+  "name": "@anandaramr/obscura",
   "version": "1.0.0",
-  "description": "",
+  "description": "A lightweight local media streaming server",
   "main": "dist/server.js",
+  "type": "module",
   "bin": {
     "obscura": "dist/server.js"
   },
+  "files": [
+    "dist/**/*",
+    "public/**/*"
+  ],
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "prepare": "npm run build"
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "dependencies": {
     "chokidar": "^5.0.0",
     "dotenv": "^17.4.2",

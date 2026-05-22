@@ -1,4 +1,9 @@
+# Obscura Media Server
+
+Core documentation and CLI guides will be published with the upcoming stable release.
+
 # Installation
+
 ```sh
-npm install -g github:anandaramr/obscura
+npm i -g @anandaramr/obscura
 ```
