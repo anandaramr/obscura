@@ -2,20 +2,8 @@ let files = []
 let isShuffled = false
 let elementMap = new Map()
 
-function onVideoPlay(fileId) {
-    clearTimeout(cacheTTLMap.get(fileId))
-    cacheTTLMap.delete(fileId)
-}
-
-function onVideoPause(fileId, vid) {
-    const timer = setTimeout(() => {
-        vid.removeAttribute('src')
-        vid.load()
-        cacheTTLMap.delete(fileId)
-    }, VIDEO_CACHE_TTL)
-
-    cacheTTLMap.set(fileId, timer)
-}
+const VIDEO_CACHE_TTL = 60 * 1000
+let cacheTTLMap = new Map()
 
 init()
 
@@ -23,7 +11,7 @@ async function init() {
     const res = await fetch('/api/files')
     files = await res.json()
 
-    params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(window.location.search)
     isShuffled = params.has('shuffle')
     const fileList = isShuffled ? shuffleArray(files) : files
 
@@ -68,30 +56,6 @@ const observer = new IntersectionObserver(
     },
     { threshold: 1 }
 )
-
-let currentPreview = null
-function onVisible(preview) {
-    const vid = preview.getElementsByClassName('video-preview')[0]
-    previewWindow.push(preview)
-    previewWindow.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
-
-    vid.onended = evt => {
-        const idx = previewWindow.indexOf(preview)
-        stopMobilePreview(idx)
-        startMobilePreview((idx + 1) % previewWindow.length)
-    }
-
-    if (!currentPreview) startMobilePreview(0)
-}
-
-function onEndOfVisibility(preview) {
-    const idx = previewWindow.indexOf(preview)
-    const isCurrentlyPlaying = currentPreview == preview
-
-    stopMobilePreview(idx)
-    previewWindow.splice(idx, 1)
-    if (isCurrentlyPlaying && previewWindow.length) startMobilePreview(idx % previewWindow.length)
-}
 
 function insertGridItem(file, grid, prepend = false) {
     const preview = document.createElement('a')
@@ -138,7 +102,7 @@ function insertGridItem(file, grid, prepend = false) {
     } else if (file.isAnimated) {
         const icon = document.createElement('span')
         icon.className = 'live-indicator'
-        icon.innerText = "LIVE"
+        icon.innerText = 'LIVE'
         preview.appendChild(icon)
 
         preview.onmouseenter = () => {
@@ -146,7 +110,7 @@ function insertGridItem(file, grid, prepend = false) {
                 media.src = `/api/files/${file.id}`
             }
         }
-        
+
         preview.onmouseleave = () => {
             if (!isMobileDevice()) {
                 media.src = `/api/thumb/${file.id}`
@@ -164,8 +128,58 @@ function insertGridItem(file, grid, prepend = false) {
     elementMap.set(file.id, preview)
 }
 
-const VIDEO_CACHE_TTL = 60 * 1000
-let cacheTTLMap = new Map()
+function onVideoPlay(fileId) {
+    clearTimeout(cacheTTLMap.get(fileId))
+    cacheTTLMap.delete(fileId)
+}
+
+function onVideoPause(fileId, vid) {
+    // Allow browser to free memory if the video hasn't been
+    // played for a specified amount of time
+    const timer = setTimeout(() => {
+        vid.removeAttribute('src')
+        vid.load()
+        cacheTTLMap.delete(fileId)
+    }, VIDEO_CACHE_TTL)
+
+    cacheTTLMap.set(fileId, timer)
+}
+
+let currentPreview = null
+function onVisible(preview) {
+    const vid = preview.getElementsByClassName('video-preview')[0]
+    if (!vid) return
+
+    addToPreviewWindow(preview)
+    vid.onended = evt => {
+        const idx = previewWindow.indexOf(preview)
+        stopMobilePreview(idx)
+        startMobilePreview((idx + 1) % previewWindow.length)
+    }
+
+    if (!currentPreview) startMobilePreview(0)
+}
+
+const getPosition = element => element.getBoundingClientRect().top
+function addToPreviewWindow(preview) {
+    // inserts elements sorted according to their relative position
+    // ASSUMES elements are added only during scroll and no elements
+    // would be added between
+    if (previewWindow.length && getPosition(preview) < getPosition(previewWindow[0])) {
+        previewWindow.unshift(preview)
+    } else {
+        previewWindow.push(preview)
+    }
+}
+
+function onEndOfVisibility(preview) {
+    const idx = previewWindow.indexOf(preview)
+    const isCurrentlyPlaying = currentPreview == preview
+
+    stopMobilePreview(idx)
+    previewWindow.splice(idx, 1)
+    if (isCurrentlyPlaying && previewWindow.length) startMobilePreview(idx % previewWindow.length)
+}
 
 function stopMobilePreview(idx) {
     const preview = previewWindow[idx]
@@ -194,7 +208,7 @@ function startMobilePreview(idx) {
 function stopVideoPreview(vid, id, media, icon) {
     vid.pause()
     onVideoPause(id, vid)
-    
+
     vid.classList.add('fade')
     media.classList.remove('fade')
     icon.classList.remove('blink')
@@ -212,7 +226,7 @@ function startVideoPreview(vid, id, media, icon) {
         { once: true }
     )
 
-    if (!vid.src) {
+    if (needsVideoLoading(vid)) {
         vid.src = `/api/files/${id}`
         vid.load()
     }
@@ -225,6 +239,10 @@ function startVideoPreview(vid, id, media, icon) {
     vid.play().catch(err => console.log('Play interrupted:', err))
 }
 
+function needsVideoLoading(vid) {
+    return !vid.src || vid.networkState === HTMLMediaElement.NETWORK_NO_SOURCE || vid.error
+}
+
 function isMobileDevice() {
     return !window.matchMedia('(min-width: 769px)').matches
 }
@@ -234,7 +252,7 @@ function removeGridItem(fileId) {
     if (child) {
         const grid = document.getElementById('grid')
         grid.removeChild(child)
-        elementMap.delete(child)
+        elementMap.delete(fileId)
         files = files.filter(f => f.id !== fileId)
     }
 }
