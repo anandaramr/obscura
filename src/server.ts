@@ -140,7 +140,10 @@ export default function startServer(config: ServerConfig) {
 
     return new Promise<() => Promise<void>>((resolve, reject) => {
         const server = app.listen(config.port, config.address, (error) => {
-            if (error) reject(error)
+            if (error) {
+                reject(error)
+                return
+            }
 
             console.log(`Obscura running at ${config.address}:${config.port}`)
             console.log(`Serving media from \x1b[36m${config.galleryDir}\x1b[0m\n`)

@@ -21,9 +21,14 @@ program
 program
     .argument("[directory]", "Directory to serve", process.env.DIRECTORY ?? defaults.DIRECTORY)
     .option("-a, --address <ip>", "Address to bind to", process.env.ADDRESS ?? defaults.ADDRESS)
-    .option("-p, --port <number>", "Port to listen to",  String(parseInt(process.env.PORT ?? `${defaults.PORT}`)))
+    .option("-p, --port <number>", "Port to listen to",  process.env.PORT ?? defaults.PORT.toString())
     .action(async (directory, options) => {
         try {
+            const port = Number(options.port)
+            if (Number.isNaN(port) || port < 1 || port > 65535) {
+                throw new Error(`INVALID PORT "${options.port}" - port should be a number between 1 and 65535`)
+            }
+            
             // Get absolute directory
             const galleryDir = path.resolve(process.cwd(), directory)
             const { error } = validateDirectory(galleryDir)
@@ -34,7 +39,7 @@ program
             const config: ServerConfig = {
                 galleryDir: galleryDir,
                 address: options.address,
-                port: options.port,
+                port: port,
                 thumbSize: defaults.THUMB_SIZE,
                 imgCacheThreshold: defaults.IMG_CACHE_THRESHOLD,
                 diskConcurrency: parseInt(process.env.DISK_CONCURRENCY ?? '') || defaults.DISK_CONCURRENCY
@@ -47,8 +52,8 @@ program
                 process.exit(0)
             })
         } catch (error) {
-            console.error(`\x1b[31m[Obscura Startup Error]\x1b[0m`)
-            console.error(error)
+            console.error(`\x1b[31m[Obscura Startup Error]`)
+            console.error(`> ${error}\x1b[0m`)
             process.exit(1)
         }
     })
