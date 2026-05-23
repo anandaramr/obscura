@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import express from "express"
 import os from "os"
 import chokidar from "chokidar"

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import dotenv from "dotenv"
 dotenv.config({ quiet: true })
 
@@ -24,7 +26,6 @@ program
         try {
             // Get absolute directory
             const galleryDir = path.resolve(process.cwd(), directory)
-
             const { error } = validateDirectory(galleryDir)
             if (error) {
                 throw new Error(error)
