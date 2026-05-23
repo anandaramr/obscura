@@ -21,14 +21,24 @@ program
 program
     .argument("[directory]", "Directory to serve", process.env.DIRECTORY ?? defaults.DIRECTORY)
     .option("-a, --address <ip>", "Address to bind to", process.env.ADDRESS ?? defaults.ADDRESS)
-    .option("-p, --port <number>", "Port to listen to",  process.env.PORT ?? defaults.PORT.toString())
+    .option("-p, --port <number>", "Port to listen to", process.env.PORT ?? defaults.PORT.toString())
+    .option(
+        "--disk-concurrency <number>",
+        "Maximum number of concurrent disk operations",
+        process.env.DISK_CONCURRENCY ?? defaults.DISK_CONCURRENCY.toString(),
+    )
     .action(async (directory, options) => {
         try {
             const port = Number(options.port)
-            if (Number.isNaN(port) || port < 1 || port > 65535) {
+            if (!Number.isInteger(port) || port < 1 || port > 65535) {
                 throw new Error(`INVALID PORT "${options.port}" - port should be a number between 1 and 65535`)
             }
-            
+
+            const diskConcurrency = Number(options.diskConcurrency)
+            if (!Number.isInteger(diskConcurrency) || diskConcurrency < 1) {
+                throw new Error(`INVALID --disk-concurrency "${options.diskConcurrency}" - should be a number > 0`)
+            }
+
             // Get absolute directory
             const galleryDir = path.resolve(process.cwd(), directory)
             const { error } = validateDirectory(galleryDir)
@@ -42,7 +52,7 @@ program
                 port: port,
                 thumbSize: defaults.THUMB_SIZE,
                 imgCacheThreshold: defaults.IMG_CACHE_THRESHOLD,
-                diskConcurrency: parseInt(process.env.DISK_CONCURRENCY ?? '') || defaults.DISK_CONCURRENCY
+                diskConcurrency: diskConcurrency,
             }
 
             const close = await startServer(config)
