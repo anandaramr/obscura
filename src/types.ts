@@ -22,3 +22,12 @@ export interface Result<T, S> {
     result?: T
     error?: S
 }
+
+export interface ServerConfig {
+    galleryDir: string,
+    address: string,
+    port: number,
+    thumbSize: number,
+    imgCacheThreshold: number,
+    diskConcurrency: number
+}

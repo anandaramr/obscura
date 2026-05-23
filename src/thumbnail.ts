@@ -1,7 +1,7 @@
 import type { FileMetaData } from "./types.js"
 
 import { execFile } from "child_process"
-import sharp from "sharp"
+import libSharp from "./lib/lib-sharp.js"
 import ffmpeg from "ffmpeg-static"
 
 const ffmpegPath = typeof ffmpeg === "string" ? ffmpeg : (ffmpeg as any).default
@@ -32,7 +32,7 @@ export function generateVideoThumbnail(file: FileMetaData, thumbPath: string, th
 }
 
 export async function generateImageThumbnail(file: FileMetaData, thumbPath: string, thumbSize: number) {
-    await sharp(file.path, { animated: false, page: 0 })
+    await libSharp(file.path, { animated: false, page: 0 })
         .resize(thumbSize, thumbSize, { fit: "cover" })
         .jpeg({ quality: 80 })
         .toFile(thumbPath)

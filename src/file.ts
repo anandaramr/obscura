@@ -3,7 +3,7 @@ import type { Result, FileMetaData } from "./types.js"
 import path from "path"
 import fs from "fs"
 import crypto from "crypto"
-import sharp from "sharp"
+import libSharp from "./lib/lib-sharp.js"
 
 const IMAGE_EXTS = [
     ".jpg",
@@ -24,8 +24,6 @@ const VIDEO_EXTS = [
     ".mkv",
     ".webm",
     ".m4v",
-    ".ts",
-    ".mts",
     ".m2ts",
 ]
 
@@ -77,7 +75,7 @@ export function generateHash(fullPath: string) {
 
 async function isAnimated(filePath: string): Promise<boolean> {
     try {
-        const metadata = await sharp(filePath).metadata()
+        const metadata = await libSharp(filePath).metadata()
         return (metadata.pages ?? 1) > 1
     } catch (_) {
         return false
