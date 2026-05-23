@@ -16,7 +16,7 @@ const program = new Command()
 program
     .name("obscura")
     .description("Lightweight self-hosted media gallery server for local networks")
-    .version(manifest.version)
+    .version(manifest.version, "-v, --version", "output the version number")
 
 program
     .argument("[directory]", "Directory to serve", process.env.DIRECTORY ?? defaults.DIRECTORY)
