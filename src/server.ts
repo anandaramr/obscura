@@ -39,18 +39,18 @@ export default function startServer(config: ServerConfig) {
     const watcher = chokidar.watch(config.galleryDir, {
         ignored: /(^|[\/\\])\../,
         persistent: true,
-        ignoreInitial: false,
+        ignoreInitial: false
     })
 
     let clients: SseClient[] = []
     function broadcastToUsers(action: string, fileData: Partial<ClientFileMetadata>) {
-        clients.forEach((client) => {
+        clients.forEach(client => {
             client.res.write(`data: ${JSON.stringify({ action, file: fileData })}\n\n`)
         })
     }
 
     let isBooting = true
-    watcher.on("add", async (filePath) => {
+    watcher.on("add", async filePath => {
         const fileData = await parseFileMetadata(filePath)
         if (!fileData) return
 
@@ -63,20 +63,20 @@ export default function startServer(config: ServerConfig) {
         insertSorted(
             sortedFiles,
             clientFileData,
-            (file) => new Date(file.date).getTime(),
-            (a, b) => b - a,
+            file => new Date(file.date).getTime(),
+            (a, b) => b - a
         )
 
         if (isBooting) return
         broadcastToUsers("add", clientFileData)
     })
 
-    watcher.on("unlink", (filePath) => {
+    watcher.on("unlink", filePath => {
         const fileId = generateHash(filePath)
 
         if (filesMap.has(fileId)) {
             filesMap.delete(fileId)
-            sortedFiles = sortedFiles.filter((file) => file.id !== fileId)
+            sortedFiles = sortedFiles.filter(file => file.id !== fileId)
             broadcastToUsers("remove", { id: fileId })
 
             const thumbPath = getThumbPath(THUMBS_DIR, fileId)
@@ -107,7 +107,7 @@ export default function startServer(config: ServerConfig) {
         const clientId = Date.now()
         clients.push({ id: clientId, res })
         req.on("close", () => {
-            clients = clients.filter((client) => client.id !== clientId)
+            clients = clients.filter(client => client.id !== clientId)
         })
     })
 
@@ -139,7 +139,7 @@ export default function startServer(config: ServerConfig) {
     })
 
     return new Promise<() => Promise<void>>((resolve, reject) => {
-        const server = app.listen(config.port, config.address, (error) => {
+        const server = app.listen(config.port, config.address, error => {
             if (error) {
                 reject(error)
                 return
@@ -148,25 +148,35 @@ export default function startServer(config: ServerConfig) {
             console.log(`Obscura running at ${config.address}:${config.port}`)
             console.log(`Serving media from \x1b[36m${config.galleryDir}\x1b[0m\n`)
 
+            const isAllInterfaces = config.address === "0.0.0.0"
+            if (!isAllInterfaces) {
+                logAddress(config.address, config.port)
+                return
+            }
+
             const interfaces = os.networkInterfaces()
             Object.entries(interfaces).forEach(([name, addresses]) => {
                 addresses
-                    ?.filter((addr) => addr.family === "IPv4")
-                    .forEach((addr) => {
-                        const url = `http://${addr.address}:${config.port}`
-                        console.log(`- \x1b[36m${url.padEnd(30)}\x1b[0m [${name}]`)
+                    ?.filter(addr => addr.family === "IPv4")
+                    .forEach(addr => {
+                        logAddress(addr.address, config.port, name)
                     })
             })
 
             console.log("\n")
 
             resolve(() => {
-                return new Promise((res) => {
+                return new Promise(res => {
                     watcher.close().then(() => server.close(() => res()))
                 })
             })
         })
     })
+}
+
+function logAddress(addr: string, port: number, name?: string) {
+    const url = `http://${addr}:${port}`
+    console.log(`- \x1b[36m${url.padEnd(30)}\x1b[0m ${name ? '[' + name + ']' : ''}`)
 }
 
 function getThumbPath(thumbsDir: string, fileId: string) {

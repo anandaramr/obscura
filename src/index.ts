@@ -5,7 +5,7 @@ dotenv.config({ quiet: true })
 
 import { Command } from "commander"
 import manifest from "../package.json" with { type: "json" }
-import { defaults, parseDirArg, parseDiskConcOption, parsePortOption } from "./config.js"
+import { defaults, parseAddress, parseDirectory, parseDiskConcurrency, parsePort } from "./config.js"
 import startServer from "./server.js"
 import type { ServerConfig } from "./types.js"
 
@@ -30,14 +30,15 @@ program
         process.env.DISK_CONCURRENCY ?? defaults.DISK_CONCURRENCY.toString()
     )
     .action(async (directory, options) => {
-        const galleryDir = parseDirArg(directory)
-        const port = parsePortOption(options.port)
-        const diskConcurrency = parseDiskConcOption(options.diskConcurrency)
+        const galleryDir = parseDirectory(directory)
+        const port = parsePort(options.port)
+        const diskConcurrency = parseDiskConcurrency(options.diskConcurrency)
+        const address = parseAddress(options.address)
 
         try {
             const config: ServerConfig = {
                 galleryDir: galleryDir,
-                address: options.address,
+                address: address,
                 port: port,
                 thumbSize: defaults.THUMB_SIZE,
                 imgCacheThreshold: defaults.IMG_CACHE_THRESHOLD,
