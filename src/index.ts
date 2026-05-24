@@ -5,9 +5,7 @@ dotenv.config({ quiet: true })
 
 import { Command } from "commander"
 import manifest from "../package.json" with { type: "json" }
-import { defaults } from "./config.js"
-import path from "path"
-import { validateDirectory } from "./file.js"
+import { defaults, parseDirArg, parseDiskConcOption, parsePortOption } from "./config.js"
 import startServer from "./server.js"
 import type { ServerConfig } from "./types.js"
 
@@ -21,38 +19,29 @@ program
 program
     .argument("[directory]", "Directory to serve", process.env.DIRECTORY ?? defaults.DIRECTORY)
     .option("-a, --address <ip>", "Address to bind to", process.env.ADDRESS ?? defaults.ADDRESS)
-    .option("-p, --port <number>", "Port to listen to", process.env.PORT ?? defaults.PORT.toString())
+    .option(
+        "-p, --port <number>",
+        "Port to listen to",
+        process.env.PORT ?? defaults.PORT.toString()
+    )
     .option(
         "--disk-concurrency <number>",
         "Maximum number of concurrent disk operations",
-        process.env.DISK_CONCURRENCY ?? defaults.DISK_CONCURRENCY.toString(),
+        process.env.DISK_CONCURRENCY ?? defaults.DISK_CONCURRENCY.toString()
     )
     .action(async (directory, options) => {
+        const galleryDir = parseDirArg(directory)
+        const port = parsePortOption(options.port)
+        const diskConcurrency = parseDiskConcOption(options.diskConcurrency)
+
         try {
-            const port = Number(options.port)
-            if (!Number.isInteger(port) || port < 1 || port > 65535) {
-                throw new Error(`INVALID PORT "${options.port}" - port should be a number between 1 and 65535`)
-            }
-
-            const diskConcurrency = Number(options.diskConcurrency)
-            if (!Number.isInteger(diskConcurrency) || diskConcurrency < 1) {
-                throw new Error(`INVALID --disk-concurrency "${options.diskConcurrency}" - should be a number > 0`)
-            }
-
-            // Get absolute directory
-            const galleryDir = path.resolve(process.cwd(), directory)
-            const { error } = validateDirectory(galleryDir)
-            if (error) {
-                throw new Error(error)
-            }
-
             const config: ServerConfig = {
                 galleryDir: galleryDir,
                 address: options.address,
                 port: port,
                 thumbSize: defaults.THUMB_SIZE,
                 imgCacheThreshold: defaults.IMG_CACHE_THRESHOLD,
-                diskConcurrency: diskConcurrency,
+                diskConcurrency: diskConcurrency
             }
 
             const close = await startServer(config)
