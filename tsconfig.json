@@ -43,5 +43,5 @@
 
     "esModuleInterop": true,
   },
-  "include": ["src//*", "src/lib/lib-sharp.ts"]
+  "include": ["src//*"]
 }
