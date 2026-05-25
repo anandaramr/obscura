@@ -18,8 +18,6 @@ import { defaults } from "./config.js"
 const __filename = fileURLToPath(import.meta.url)
 const PROJECT_ROOT = path.resolve(path.dirname(__filename), "..")
 
-const app = createApp()
-
 function createApp() {
     const app = express()
     app.use(express.json())
@@ -87,6 +85,8 @@ export default function startServer(config: ServerConfig) {
     watcher.on("ready", () => {
         isBooting = false
     })
+
+    const app = createApp()
 
     app.get("/api/files", (req, res) => {
         res.status(200).json(sortedFiles)
@@ -176,7 +176,7 @@ export default function startServer(config: ServerConfig) {
 
 function logAddress(addr: string, port: number, name?: string) {
     const url = `http://${addr}:${port}`
-    console.log(`- \x1b[36m${url.padEnd(30)}\x1b[0m ${name ? '[' + name + ']' : ''}`)
+    console.log(`- \x1b[36m${url.padEnd(30)}\x1b[0m ${name ? "[" + name + "]" : ""}`)
 }
 
 function getThumbPath(thumbsDir: string, fileId: string) {
