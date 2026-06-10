@@ -2,11 +2,8 @@ import type { FileMetaData } from "./types.js"
 
 import { execFile } from "child_process"
 import libSharp from "./lib/lib-sharp.js"
-import ffmpeg from "ffmpeg-static"
 
-const ffmpegPath = typeof ffmpeg === "string" ? ffmpeg : (ffmpeg as any).default
-
-export function generateVideoThumbnail(file: FileMetaData, thumbPath: string, thumbSize: number) {
+export function generateVideoThumbnail(ffmpegPath: string, file: FileMetaData, thumbPath: string, thumbSize: number) {
     return new Promise<void>((resolve, reject) => {
         execFile(
             ffmpegPath,

@@ -5,7 +5,7 @@ dotenv.config({ quiet: true })
 
 import { Command } from "commander"
 import manifest from "../package.json" with { type: "json" }
-import { defaults, parseAddress, parseDirectory, parseDiskConcurrency, parsePort } from "./config.js"
+import { defaults, getFfmpegPath, parseAddress, parseDirectory, parseDiskConcurrency, parsePort } from "./config.js"
 import startServer from "./server.js"
 import type { ServerConfig } from "./types.js"
 
@@ -34,6 +34,7 @@ program
         const port = parsePort(options.port)
         const diskConcurrency = parseDiskConcurrency(options.diskConcurrency)
         const address = parseAddress(options.address)
+        const ffmpegPath = getFfmpegPath()
 
         try {
             const config: ServerConfig = {
@@ -42,7 +43,8 @@ program
                 port: port,
                 thumbSize: defaults.THUMB_SIZE,
                 imgCacheThreshold: defaults.IMG_CACHE_THRESHOLD,
-                diskConcurrency: diskConcurrency
+                diskConcurrency: diskConcurrency,
+                ffmpegPath: ffmpegPath
             }
 
             const close = await startServer(config)

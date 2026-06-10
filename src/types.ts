@@ -29,5 +29,17 @@ export interface ServerConfig {
     port: number,
     thumbSize: number,
     imgCacheThreshold: number,
-    diskConcurrency: number
+    diskConcurrency: number,
+    ffmpegPath: string | null
+}
+
+export interface DefaultConfig {
+    DIRECTORY: string,
+    THUMBS_DIR: string,
+    ADDRESS: string,
+    PORT: number,
+
+    THUMB_SIZE: number,
+    IMG_CACHE_THRESHOLD: number,
+    DISK_CONCURRENCY: number
 }

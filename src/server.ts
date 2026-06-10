@@ -11,6 +11,7 @@ import { parseFileMetadata, generateHash } from "./file.js"
 import logger from "./logger.js"
 
 import { generateImageThumbnail, generateVideoThumbnail } from "./thumbnail.js"
+import { getFfmpegPath } from "./lib/lib-ffmpeg.js"
 import { insertSorted } from "./utils.js"
 import type { ClientFileMetadata, FileMetaData, ServerConfig, SseClient } from "./types.js"
 
@@ -130,7 +131,8 @@ export default function startServer(config: ServerConfig) {
                 if (file.type === "image") {
                     await generateImageThumbnail(file, thumbPath, config.thumbSize)
                 } else {
-                    await generateVideoThumbnail(file, thumbPath, config.thumbSize)
+                    const ffmpegPath = config.ffmpegPath || await getFfmpegPath()
+                    await generateVideoThumbnail(ffmpegPath, file, thumbPath, config.thumbSize)
                 }
             })
             res.sendFile(path.resolve(thumbPath))

@@ -2,8 +2,9 @@ import { InvalidArgumentError, InvalidOptionArgumentError } from "commander"
 import path from "path"
 import { validateDirectory } from "./file.js"
 import net from "net"
+import type { DefaultConfig } from "./types.js"
 
-export const defaults = {
+export const defaults: DefaultConfig = {
     DIRECTORY: ".",
     THUMBS_DIR: "thumbs",
     ADDRESS: "0.0.0.0",
@@ -44,4 +45,8 @@ export function parseAddress(ip: string) {
         throw new InvalidOptionArgumentError(`Invalid IP address \"${ip}\". Should be an IPv4 address`)
     }
     return ip
+}
+
+export function getFfmpegPath() {
+    return process.env.FFMPEG_PATH || null
 }
