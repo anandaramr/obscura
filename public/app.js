@@ -45,8 +45,10 @@ eventSource.onmessage = evt => {
     const grid = document.getElementById('grid')
 
     if (data.action === 'add') {
+        file.unshift(data.file)
         insertGridItem(data.file, grid, true)
     } else if (data.action === 'remove') {
+        files = files.filter(f => f.id !== fileId)
         removeGridItem(data.file.id)
     }
 }
@@ -283,7 +285,6 @@ function removeGridItem(fileId) {
         const grid = document.getElementById('grid')
         grid.removeChild(child)
         elementMap.delete(fileId)
-        files = files.filter(f => f.id !== fileId)
     }
 }
 
