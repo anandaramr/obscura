@@ -16,7 +16,7 @@ import { insertSorted } from "./utils.js"
 import type { ClientFileMetadata, FileMetaData, ServerConfig, SseClient } from "./types.js"
 
 import { fileURLToPath } from "url"
-import { defaults } from "./config.js"
+import { getThumbsDir } from "./cache.js"
 const __filename = fileURLToPath(import.meta.url)
 const PROJECT_ROOT = path.resolve(path.dirname(__filename), "..")
 
@@ -31,7 +31,7 @@ function createApp() {
 
 export default function startServer(config: ServerConfig) {
     const limit = pLimit(config.diskConcurrency)
-    const THUMBS_DIR = path.resolve(PROJECT_ROOT, defaults.THUMBS_DIR)
+    const THUMBS_DIR = getThumbsDir()
     if (!fs.existsSync(THUMBS_DIR)) fs.mkdirSync(THUMBS_DIR, { recursive: true })
 
     let filesMap = new Map<string, FileMetaData>()
@@ -131,7 +131,7 @@ export default function startServer(config: ServerConfig) {
                 if (file.type === "image") {
                     await generateImageThumbnail(file, thumbPath, config.thumbSize)
                 } else {
-                    const ffmpegPath = config.ffmpegPath || await getFfmpegPath()
+                    const ffmpegPath = config.ffmpegPath || (await getFfmpegPath())
                     await generateVideoThumbnail(ffmpegPath, file, thumbPath, config.thumbSize)
                 }
             })
