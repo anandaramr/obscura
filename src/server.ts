@@ -52,6 +52,21 @@ export default async function startServer(config: ServerConfig): Promise<() => P
         })
     }
 
+    function toClientFile(file: FileMetaData): ClientFileMetadata {
+        const { id, name, type, date, size, isAnimated } = file
+        return { id, name, type, date, size, isAnimated }
+    }
+
+    function insertToSortedFiles(file: FileMetaData) {
+        const clientFile = toClientFile(file)
+        insertSorted(
+            sortedFiles,
+            clientFile,
+            file => new Date(file.date).getTime(),
+            (a, b) => b - a
+        )
+    }
+
     let isBooting = true
     watcher.on("add", async filePath => {
         const fileData = await parseFileMetadata(filePath)
@@ -61,22 +76,18 @@ export default async function startServer(config: ServerConfig): Promise<() => P
         filesMap.set(fileData.id, fileData)
 
         if (isExisting) return
-        const { id, name, type, date, size, isAnimated } = fileData
-        const clientFileData = { id, name, type, date, size, isAnimated }
-        insertSorted(
-            sortedFiles,
-            clientFileData,
-            file => new Date(file.date).getTime(),
-            (a, b) => b - a
-        )
+        insertToSortedFiles(fileData)
 
         if (isBooting) return
-        broadcastToUsers("add", clientFileData)
+        broadcastToUsers("add", fileData)
     })
 
     watcher.on("change", async filePath => {
         const file = await parseFileMetadata(filePath)
         if (!file) return
+
+        sortedFiles = sortedFiles.filter(f => f.id !== file.id)
+        insertToSortedFiles(file)
 
         try {
             await refreshThumbnail(file)
