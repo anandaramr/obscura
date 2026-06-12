@@ -29,8 +29,10 @@ function createApp() {
     return app
 }
 
-export default function startServer(config: ServerConfig) {
+export default async function startServer(config: ServerConfig): Promise<() => Promise<void>> {
+    const ffmpegPath = config.ffmpegPath || (await getFfmpegPath())
     const limit = pLimit(config.diskConcurrency)
+
     const THUMBS_DIR = getThumbsDir()
     if (!fs.existsSync(THUMBS_DIR)) fs.mkdirSync(THUMBS_DIR, { recursive: true })
 
@@ -70,6 +72,18 @@ export default function startServer(config: ServerConfig) {
 
         if (isBooting) return
         broadcastToUsers("add", clientFileData)
+    })
+
+    watcher.on("change", async filePath => {
+        const file = await parseFileMetadata(filePath)
+        if (!file) return
+
+        try {
+            await refreshThumbnail(file)
+            broadcastToUsers("update", file)
+        } catch (err) {
+            console.error(`Error while updating file metadat change: ${err}`)
+        }
     })
 
     watcher.on("unlink", filePath => {
@@ -118,29 +132,56 @@ export default function startServer(config: ServerConfig) {
         const file = filesMap.get(req.params.id)
         if (!file) return res.sendStatus(404)
 
-        if (shouldAvoidCaching(file, config.imgCacheThreshold)) {
-            return res.sendFile(file.path)
-        }
-
-        const thumbPath = getThumbPath(THUMBS_DIR, file.id)
-
         try {
-            await limit(async () => {
-                if (fs.existsSync(thumbPath)) return
-
-                if (file.type === "image") {
-                    await generateImageThumbnail(file, thumbPath, config.thumbSize)
-                } else {
-                    const ffmpegPath = config.ffmpegPath || (await getFfmpegPath())
-                    await generateVideoThumbnail(ffmpegPath, file, thumbPath, config.thumbSize)
-                }
-            })
-            res.sendFile(path.resolve(thumbPath))
+            const thumbPath = await getOrCreateThumbnail(file)
+            res.sendFile(thumbPath)
         } catch (err) {
-            console.error(`Error while creating thumbnail: ${err}`)
+            console.error(err)
             res.sendStatus(500)
         }
     })
+
+    async function getOrCreateThumbnail(file: FileMetaData): Promise<string> {
+        if (shouldAvoidCaching(file, config.imgCacheThreshold)) {
+            return file.path
+        }
+
+        const thumbPath = getThumbPath(THUMBS_DIR, file.id)
+        try {
+            await limit(async () => {
+                if (fs.existsSync(thumbPath)) return
+                await createThumbnail(file, thumbPath)
+            })
+            return path.resolve(thumbPath)
+        } catch (err) {
+            throw new Error(`Error while creating thumbnail: ${err}`)
+        }
+    }
+
+    async function refreshThumbnail(file: FileMetaData): Promise<void> {
+        const thumbPath = getThumbPath(THUMBS_DIR, file.id)
+        if (shouldAvoidCaching(file, config.imgCacheThreshold)) {
+            await fs.promises.rm(thumbPath, { force: true })
+            return
+        }
+
+        try {
+            await limit(async () => {
+                await createThumbnail(file, thumbPath)
+            })
+            return
+        } catch (err) {
+            throw new Error(`Error while creating thumbnail: ${err}`)
+        }
+    }
+
+    async function createThumbnail(file: FileMetaData, thumbPath: string) {
+        if (file.type === "image") {
+            await generateImageThumbnail(file, thumbPath, config.thumbSize)
+        } else {
+            await generateVideoThumbnail(ffmpegPath, file, thumbPath, config.thumbSize)
+        }
+    }
 
     return new Promise<() => Promise<void>>((resolve, reject) => {
         const server = app.listen(config.port, config.address, error => {
