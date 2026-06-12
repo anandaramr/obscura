@@ -42,15 +42,30 @@ const eventSource = new EventSource('/api/events')
 
 eventSource.onmessage = evt => {
     const data = JSON.parse(evt.data)
-    const grid = document.getElementById('grid')
 
     if (data.action === 'add') {
-        file.unshift(data.file)
-        insertGridItem(data.file, grid, true)
+        onAdd(data.file)
     } else if (data.action === 'remove') {
-        files = files.filter(f => f.id !== fileId)
-        removeGridItem(data.file.id)
+        onRemove(data.file.id)
+    } else if (data.action === 'update') {
+        onUpdate(data.file)
     }
+}
+
+function onUpdate(file) {
+    onRemove(file.id)
+    onAdd(file)
+}
+
+function onRemove(fileId) {
+    files = files.filter(f => f.id !== fileId)
+    removeGridItem(fileId)
+}
+
+function onAdd(file) {
+    files.unshift(file)
+    const grid = document.getElementById('grid')
+    insertGridItem(file, grid, true)
 }
 
 eventSource.onopen = () => {
@@ -77,11 +92,11 @@ function insertGridItem(file, grid, prepend = false) {
     const preview = document.createElement('a')
 
     preview.className = 'grid-item'
-    preview.href = `/api/files/${file.id}`
+    preview.href = getFileSource(file)
     preview.id = file.id
 
     const media = document.createElement('img')
-    media.src = `/api/thumb/${file.id}`
+    media.src = getThumbSource(file)
     media.loading = 'lazy'
     media.className = file.type === 'image' ? 'img' : 'video'
     media.onerror = () => {
@@ -113,7 +128,7 @@ function insertGridItem(file, grid, prepend = false) {
 
         preview.onmouseenter = () => {
             if (!isMobileDevice()) {
-                startVideoPreview(vid, file.id, media, icon)
+                startVideoPreview(vid, file, media, icon)
             }
         }
 
@@ -130,13 +145,13 @@ function insertGridItem(file, grid, prepend = false) {
 
         preview.onmouseenter = () => {
             if (!isMobileDevice()) {
-                media.src = `/api/files/${file.id}`
+                media.src = getFileSource(file)
             }
         }
 
         preview.onmouseleave = () => {
             if (!isMobileDevice()) {
-                media.src = `/api/thumb/${file.id}`
+                media.src = getThumbSource(file)
             }
         }
     }
@@ -149,6 +164,14 @@ function insertGridItem(file, grid, prepend = false) {
 
     if (isMobileDevice() && file.type === 'video') observer.observe(preview)
     elementMap.set(file.id, preview)
+}
+
+function getFileSource(file) {
+    return `/api/files/${file.id}?v=${file.date}`
+}
+
+function getThumbSource(file) {
+    return `/api/thumb/${file.id}?v=${file.date}`
 }
 
 function isServerReachable() {
@@ -247,7 +270,7 @@ function stopVideoPreview(vid, id, media, icon) {
     icon.classList.remove('fade')
 }
 
-function startVideoPreview(vid, id, media, icon) {
+function startVideoPreview(vid, file, media, icon) {
     icon.classList.add('blink')
     vid.addEventListener(
         'playing',
@@ -259,14 +282,14 @@ function startVideoPreview(vid, id, media, icon) {
     )
 
     if (needsVideoLoading(vid)) {
-        vid.src = `/api/files/${id}`
+        vid.src = getFileSource(file)
         vid.load()
     }
 
     vid.classList.remove('fade')
     media.classList.add('fade')
 
-    onVideoPlay(id)
+    onVideoPlay(file.id)
     vid.currentTime = 0
     vid.play().catch(err => console.log('Play interrupted:', err))
 }
