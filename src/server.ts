@@ -160,7 +160,10 @@ export default async function startServer(config: ServerConfig): Promise<() => P
         const thumbPath = getThumbPath(THUMBS_DIR, file.id)
         try {
             await limit(async () => {
-                if (fs.existsSync(thumbPath)) return
+                if (fs.existsSync(thumbPath)) {
+                    const stat = fs.statSync(thumbPath)
+                    if (stat.mtime >= file.date) return
+                }
                 await createThumbnail(file, thumbPath)
             })
             return path.resolve(thumbPath)
