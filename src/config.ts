@@ -3,6 +3,11 @@ import path from "path"
 import { validateDirectory } from "./file.js"
 import net from "net"
 import type { DefaultConfig } from "./types.js"
+import { fileURLToPath } from "node:url"
+import { getFfmpegStaticPath } from "./lib/lib-ffmpeg.js"
+
+const __filename = fileURLToPath(import.meta.url)
+export const PROJECT_ROOT = path.resolve(path.dirname(__filename), "..")
 
 export const defaults: DefaultConfig = {
     DIRECTORY: ".",
@@ -41,12 +46,14 @@ export function parseDirectory(dir: string) {
 }
 
 export function parseAddress(ip: string) {
-    if (!ip || (!net.isIPv4(ip) && ip !== 'localhost')) {
-        throw new InvalidOptionArgumentError(`Invalid IP address \"${ip}\". Should be an IPv4 address`)
+    if (!ip || (!net.isIPv4(ip) && ip !== "localhost")) {
+        throw new InvalidOptionArgumentError(
+            `Invalid IP address \"${ip}\". Should be an IPv4 address`
+        )
     }
     return ip
 }
 
-export function getFfmpegPath() {
-    return process.env.FFMPEG_PATH || null
+export async function getFfmpegPath() {
+    return process.env.FFMPEG_PATH || getFfmpegStaticPath()
 }

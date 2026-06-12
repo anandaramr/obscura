@@ -30,7 +30,7 @@ export interface ServerConfig {
     thumbSize: number,
     imgCacheThreshold: number,
     diskConcurrency: number,
-    ffmpegPath: string | null
+    ffmpegPath: string
 }
 
 export interface DefaultConfig {

@@ -1,6 +1,6 @@
 let ffmpegPath: string | null = null
 
-export async function getFfmpegPath(): Promise<string> {
+export async function getFfmpegStaticPath(): Promise<string> {
     if (ffmpegPath) return ffmpegPath
 
     try {

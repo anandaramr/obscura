@@ -11,14 +11,11 @@ import { parseFileMetadata, generateHash } from "./file.js"
 import logger from "./logger.js"
 
 import { generateImageThumbnail, generateVideoThumbnail } from "./thumbnail.js"
-import { getFfmpegPath } from "./lib/lib-ffmpeg.js"
 import { insertSorted } from "./utils.js"
 import type { ClientFileMetadata, FileMetaData, ServerConfig, SseClient } from "./types.js"
 
-import { fileURLToPath } from "url"
-import { getThumbsDir } from "./cache.js"
-const __filename = fileURLToPath(import.meta.url)
-const PROJECT_ROOT = path.resolve(path.dirname(__filename), "..")
+import { getThumbPath, THUMBS_DIR, shouldAvoidCaching } from "./cache.js"
+import { PROJECT_ROOT } from "./config.js"
 
 function createApp() {
     const app = express()
@@ -29,11 +26,10 @@ function createApp() {
     return app
 }
 
-export default async function startServer(config: ServerConfig): Promise<() => Promise<void>> {
-    const ffmpegPath = config.ffmpegPath || (await getFfmpegPath())
+export default function startServer(config: ServerConfig): Promise<() => Promise<void>> {
+    const ffmpegPath = config.ffmpegPath
     const limit = pLimit(config.diskConcurrency)
 
-    const THUMBS_DIR = getThumbsDir()
     if (!fs.existsSync(THUMBS_DIR)) fs.mkdirSync(THUMBS_DIR, { recursive: true })
 
     let filesMap = new Map<string, FileMetaData>()
@@ -105,7 +101,7 @@ export default async function startServer(config: ServerConfig): Promise<() => P
             sortedFiles = sortedFiles.filter(file => file.id !== fileId)
             broadcastToUsers("remove", { id: fileId })
 
-            const thumbPath = getThumbPath(THUMBS_DIR, fileId)
+            const thumbPath = getThumbPath(fileId)
             fs.unlink(thumbPath, () => {})
         }
     })
@@ -157,7 +153,7 @@ export default async function startServer(config: ServerConfig): Promise<() => P
             return file.path
         }
 
-        const thumbPath = getThumbPath(THUMBS_DIR, file.id)
+        const thumbPath = getThumbPath(file.id)
         try {
             await limit(async () => {
                 if (fs.existsSync(thumbPath)) {
@@ -173,7 +169,7 @@ export default async function startServer(config: ServerConfig): Promise<() => P
     }
 
     async function refreshThumbnail(file: FileMetaData): Promise<void> {
-        const thumbPath = getThumbPath(THUMBS_DIR, file.id)
+        const thumbPath = getThumbPath(file.id)
         if (shouldAvoidCaching(file, config.imgCacheThreshold)) {
             await fs.promises.rm(thumbPath, { force: true })
             return
@@ -238,10 +234,4 @@ function logAddress(addr: string, port: number, name?: string) {
     console.log(`- \x1b[36m${url.padEnd(30)}\x1b[0m ${name ? "[" + name + "]" : ""}`)
 }
 
-function getThumbPath(thumbsDir: string, fileId: string) {
-    return path.join(thumbsDir, `${fileId}.jpg`)
-}
 
-function shouldAvoidCaching(file: FileMetaData, threshold: number) {
-    return file.type == "image" && file.size < threshold && !file.isAnimated
-}

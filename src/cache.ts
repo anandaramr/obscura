@@ -1,17 +1,11 @@
 import path from "path"
-import { fileURLToPath } from "url"
 import fs from "fs/promises"
-import { defaults } from "./config.js"
+import { defaults, PROJECT_ROOT } from "./config.js"
+import type { FileMetaData } from "./types.js"
 
-const __filename = fileURLToPath(import.meta.url)
-const PROJECT_ROOT = path.resolve(path.dirname(__filename), "..")
-
-export function getThumbsDir() {
-    return path.resolve(PROJECT_ROOT, defaults.THUMBS_DIR)
-}
+export const THUMBS_DIR = path.resolve(PROJECT_ROOT, defaults.THUMBS_DIR)
 
 export async function getCacheSize(): Promise<number> {
-    const THUMBS_DIR = getThumbsDir()
     let totalSize = 0
     let files
 
@@ -33,7 +27,6 @@ export async function getCacheSize(): Promise<number> {
 
 export async function emptyCache() {
     let totalSize = 0
-    const THUMBS_DIR = getThumbsDir()
     let files
 
     try {
@@ -63,4 +56,12 @@ function compareErrorCode(e: unknown, code: string): boolean {
     }
 
     return false
+}
+
+export function shouldAvoidCaching(file: FileMetaData, threshold: number) {
+    return file.type == "image" && file.size < threshold && !file.isAnimated
+}
+
+export function getThumbPath(fileId: string) {
+    return path.join(THUMBS_DIR, `${fileId}.jpg`)
 }

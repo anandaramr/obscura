@@ -3,7 +3,10 @@
 import dotenv from "dotenv"
 dotenv.config({ quiet: true })
 
+import fs from "fs/promises"
+import path from "path"
 import { Command } from "commander"
+
 import manifest from "../package.json" with { type: "json" }
 import {
     defaults,
@@ -11,12 +14,16 @@ import {
     parseAddress,
     parseDirectory,
     parseDiskConcurrency,
-    parsePort
+    parsePort,
+    PROJECT_ROOT
 } from "./config.js"
+
 import startServer from "./server.js"
-import type { ServerConfig } from "./types.js"
-import { emptyCache, getCacheSize, getThumbsDir } from "./cache.js"
+import { emptyCache, getCacheSize, THUMBS_DIR, shouldAvoidCaching, getThumbPath } from "./cache.js"
 import { bytesToString } from "./utils.js"
+import { parseFileMetadata } from "./file.js"
+import { generateImageThumbnail, generateVideoThumbnail } from "./thumbnail.js"
+import type { FileMetaData, ServerConfig } from "./types.js"
 
 const program = new Command()
 
@@ -43,7 +50,7 @@ program
         const port = parsePort(options.port)
         const diskConcurrency = parseDiskConcurrency(options.diskConcurrency)
         const address = parseAddress(options.address)
-        const ffmpegPath = getFfmpegPath()
+        const ffmpegPath = await getFfmpegPath()
 
         try {
             const config: ServerConfig = {
@@ -75,7 +82,7 @@ cache
     .command("stats")
     .description("Show cache usage and storage statistics")
     .action(async () => {
-        console.log(`Cache directory: \x1b[36m${getThumbsDir()}\x1b[0m`)
+        console.log(`Cache directory: \x1b[36m${THUMBS_DIR}\x1b[0m`)
 
         const cacheSize = await getCacheSize()
         console.log(`Cache size: ${bytesToString(cacheSize)}`)
@@ -92,5 +99,48 @@ cache
             console.log(`Error encountered: ${e}`)
         }
     })
+
+program
+    .command("index")
+    .description("Index directory")
+    .argument("[directory]", "Directory to be indexed", ".")
+    .action(async dir => {
+        const directory = path.resolve(PROJECT_ROOT, dir)
+        const start = Date.now()
+        const ffmpegPath = await getFfmpegPath()
+        await cacheDirectory(directory, ffmpegPath)
+        console.log(`Completed in ${Date.now() - start} ms`)
+    })
+
+async function cacheDirectory(directory: string, ffmpegPath: string) {
+    const files = await fs.readdir(directory)
+
+    for (const entry of files) {
+        const fullPath = path.resolve(directory, entry)
+        const stat = await fs.lstat(fullPath)
+        if (stat.isSymbolicLink()) continue
+
+        if (stat.isDirectory()) {
+            await cacheDirectory(fullPath, ffmpegPath)
+        } else {
+            const file = await parseFileMetadata(fullPath)
+            if (!file) continue
+            await cacheIfNecessary(file, ffmpegPath)
+        }
+    }
+}
+
+async function cacheIfNecessary(file: FileMetaData, ffmpegPath: string) {
+    if (shouldAvoidCaching(file, defaults.IMG_CACHE_THRESHOLD)) {
+        return
+    }
+
+    const thumbPath = getThumbPath(file.id)
+    if (file.type === "image") {
+        await generateImageThumbnail(file, thumbPath, defaults.THUMB_SIZE)
+    } else {
+        await generateVideoThumbnail(ffmpegPath, file, thumbPath, defaults.THUMB_SIZE)
+    }
+}
 
 program.parse(process.argv)
