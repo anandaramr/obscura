@@ -8,6 +8,8 @@ export function generateVideoThumbnail(ffmpegPath: string, file: FileMetaData, t
         execFile(
             ffmpegPath,
             [
+                "-y", // allow overwrite
+                "-nostdin",
                 "-i",
                 file.path,
                 "-frames:v",
