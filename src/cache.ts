@@ -1,5 +1,6 @@
 import path from "path"
 import fs from "fs/promises"
+import fsSync from "fs"
 import { defaults, PROJECT_ROOT } from "./config.js"
 import type { FileMetaData } from "./types.js"
 
@@ -64,4 +65,8 @@ export function shouldAvoidCaching(file: FileMetaData, threshold: number) {
 
 export function getThumbPath(fileId: string) {
     return path.join(THUMBS_DIR, `${fileId}.jpg`)
+}
+
+export function isAlreadyCached(fileId: string) {
+    return fsSync.existsSync(getThumbPath(fileId))
 }

@@ -15,17 +15,10 @@ const IMAGE_EXTS = [
     ".heif",
     ".tiff",
     ".tif",
-    ".avif",
+    ".avif"
 ]
 
-const VIDEO_EXTS = [
-    ".mp4",
-    ".mov",
-    ".mkv",
-    ".webm",
-    ".m4v",
-    ".m2ts",
-]
+const VIDEO_EXTS = [".mp4", ".mov", ".mkv", ".webm", ".m4v", ".m2ts"]
 
 const ALWAYS_ANIMATED_EXTS = new Set([".gif"])
 const SOMETIMES_ANIMATED = new Set([".webp", ".avif", ".png"])
@@ -65,7 +58,7 @@ export async function parseFileMetadata(filePath: string): Promise<FileMetaData 
         date: stat.mtime,
         size: stat.size,
         ext: ext,
-        isAnimated: animated,
+        isAnimated: animated
     }
 }
 
@@ -82,7 +75,10 @@ async function isAnimated(filePath: string): Promise<boolean> {
     }
 }
 
-export async function getFiles(directory: string): Promise<FileMetaData[]> {
+export async function getFiles(
+    directory: string,
+    onScan: (scanned: number) => void = () => {}
+): Promise<FileMetaData[]> {
     const files = await fs.promises.readdir(directory)
     const result: FileMetaData[] = []
 
@@ -92,15 +88,15 @@ export async function getFiles(directory: string): Promise<FileMetaData[]> {
         if (stat.isSymbolicLink()) continue
 
         if (stat.isDirectory()) {
-            const files = await getFiles(fullPath)
+            const files = await getFiles(fullPath, scanned => onScan(result.length + scanned))
             result.push(...files)
         } else {
             const file = await parseFileMetadata(fullPath)
             if (!file) continue
             result.push(file)
+            onScan(result.length)
         }
     }
 
     return result
 }
-

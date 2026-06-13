@@ -19,11 +19,18 @@ import {
 } from "./config.js"
 
 import startServer from "./server.js"
-import { emptyCache, getCacheSize, THUMBS_DIR, shouldAvoidCaching, getThumbPath } from "./cache.js"
+import {
+    emptyCache,
+    getCacheSize,
+    THUMBS_DIR,
+    shouldAvoidCaching,
+    getThumbPath,
+    isAlreadyCached
+} from "./cache.js"
 import { bytesToString } from "./utils.js"
 import { getFiles } from "./file.js"
 import { generateImageThumbnail, generateVideoThumbnail } from "./thumbnail.js"
-import type { FileMetaData, ServerConfig } from "./types.js"
+import type { FileMetaData, IndexOpts, ServerConfig } from "./types.js"
 
 const program = new Command()
 
@@ -104,7 +111,8 @@ program
     .command("index")
     .description("Index directory")
     .argument("[directory]", "Directory to be indexed", ".")
-    .action(async dir => {
+    .option("-r, --refresh", "Overwrite existing cache")
+    .action(async (dir, options) => {
         const directory = path.resolve(PROJECT_ROOT, dir)
         const diskConcurrency = parseDiskConcurrency(
             process.env.DISK_CONCURRENCY || String(defaults.DISK_CONCURRENCY)
@@ -112,28 +120,37 @@ program
         const limit = pLimit(diskConcurrency)
         const start = Date.now()
 
-        let files = await getFiles(directory)
+        const throttled = createThrottler(500, 500)
+        let files = await getFiles(directory, scanned => {
+            throttled(() => process.stdout.write(`\x1b[2KScanned ${scanned} files\r`))
+        })
         const totalFiles = files.length
 
         files = files.filter(f => !shouldAvoidCaching(f, defaults.IMG_CACHE_THRESHOLD))
         const filesToBeCached = files.length
 
-        console.log(`Found ${totalFiles} files (${filesToBeCached} to be cached)\n`)
+        process.stdout.write(
+            `\x1b[2KFound ${totalFiles} files (${filesToBeCached} to be cached)\n\n`
+        )
 
         let completed = 0
         const ffmpegPath = await getFfmpegPath()
         const writer = progressWriter(100)
         const tasks = files.map(file =>
             limit(async () => {
-                await cacheIfNecessary(file, ffmpegPath)
+                await cacheFile(file, ffmpegPath, { refresh: options.refresh })
                 completed++
                 writer(completed, filesToBeCached)
             })
         )
 
         await Promise.all(tasks)
-        process.stdout.write(`\x1b[2K\x1b[2A\x1b[2K\nIndexed ${totalFiles} files (${filesToBeCached} cached)\n`)
-        console.log(`Completed in ${Date.now() - start} ms`)
+        process.stdout.write(
+            `\x1b[2K\x1b[2A\x1b[2K\nIndexed ${totalFiles} files from \x1b[36m${directory}\x1b[0m (${filesToBeCached} cached)\n`
+        )
+
+        const duration = (Date.now() - start) / 1000
+        console.log(`Completed in ${duration.toFixed(2)}s`)
     })
 
 function progressWriter(interval: number) {
@@ -147,20 +164,46 @@ function progressWriter(interval: number) {
 
         const perc = Math.round((current / total) * 100)
         const rate = (current - lastValue) / (now - lastWriteTime)
-        const eta = rate !== 0 && lastValue > 3 ? ((total - current) / (rate * 1000)).toFixed(2) + 's' : INFINITY_SYMBOL
-        
+        const eta =
+            rate !== 0 && lastValue > 3
+                ? ((total - current) / (rate * 1000)).toFixed(2) + "s"
+                : INFINITY_SYMBOL
+
         const width = 30
-        const bars = Math.floor(width * current / total)
+        const bars = Math.floor((width * current) / total)
         const progressBar = `[${"#".repeat(bars).padEnd(width)}]`
-        
+
         process.stdout.write(`\x1b[2K${progressBar} ${current}/${total} (${perc}%) | ETA ${eta}\r`)
         lastWriteTime = now
         lastValue = current
     }
 }
 
-async function cacheIfNecessary(file: FileMetaData, ffmpegPath: string) {
+function createThrottler(interval: number, delay: number) {
+    let lastUpdate = 0
+    let start: number | undefined = undefined
+
+    return (cb: () => void) => {
+        const now = Date.now()
+        if (!start) start = now
+        if (now - lastUpdate < interval) return
+        if (now - start < delay) return
+
+        cb()
+        lastUpdate = now
+    }
+}
+
+async function cacheFile(
+    file: FileMetaData,
+    ffmpegPath: string,
+    opts: IndexOpts = { refresh: false }
+) {
     const thumbPath = getThumbPath(file.id)
+
+    // Skip already cached files unless in refresh mode
+    if (!opts.refresh && isAlreadyCached(file.id)) return
+
     if (file.type === "image") {
         await generateImageThumbnail(file, thumbPath, defaults.THUMB_SIZE)
     } else {
