@@ -81,3 +81,26 @@ async function isAnimated(filePath: string): Promise<boolean> {
         return false
     }
 }
+
+export async function getFiles(directory: string): Promise<FileMetaData[]> {
+    const files = await fs.promises.readdir(directory)
+    const result: FileMetaData[] = []
+
+    for (const entry of files) {
+        const fullPath = path.resolve(directory, entry)
+        const stat = await fs.promises.lstat(fullPath)
+        if (stat.isSymbolicLink()) continue
+
+        if (stat.isDirectory()) {
+            const files = await getFiles(fullPath)
+            result.push(...files)
+        } else {
+            const file = await parseFileMetadata(fullPath)
+            if (!file) continue
+            result.push(file)
+        }
+    }
+
+    return result
+}
+
