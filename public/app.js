@@ -92,11 +92,12 @@ function insertGridItem(file, grid, prepend = false) {
     const preview = document.createElement('a')
 
     preview.className = 'grid-item'
-    preview.href = getFileSource(file)
+    preview.href = getFileSource(file.id, file.date)
     preview.id = file.id
+    preview.dataset.v = file.date
 
     const media = document.createElement('img')
-    media.src = getThumbSource(file)
+    media.src = getThumbSource(file.id, file.date)
     media.loading = 'lazy'
     media.className = file.type === 'image' ? 'img' : 'video'
     media.onerror = () => {
@@ -128,7 +129,7 @@ function insertGridItem(file, grid, prepend = false) {
 
         preview.onmouseenter = () => {
             if (!isMobileDevice()) {
-                startVideoPreview(vid, file, media, icon)
+                startVideoPreview(vid, file.id, file.date, media, icon)
             }
         }
 
@@ -145,13 +146,13 @@ function insertGridItem(file, grid, prepend = false) {
 
         preview.onmouseenter = () => {
             if (!isMobileDevice()) {
-                media.src = getFileSource(file)
+                media.src = getFileSource(file.id, file.date)
             }
         }
 
         preview.onmouseleave = () => {
             if (!isMobileDevice()) {
-                media.src = getThumbSource(file)
+                media.src = getThumbSource(file.id, file.date)
             }
         }
     }
@@ -166,12 +167,12 @@ function insertGridItem(file, grid, prepend = false) {
     elementMap.set(file.id, preview)
 }
 
-function getFileSource(file) {
-    return `/api/files/${file.id}?v=${file.date}`
+function getFileSource(fileId, date) {
+    return `/api/files/${fileId}?v=${date}`
 }
 
-function getThumbSource(file) {
-    return `/api/thumb/${file.id}?v=${file.date}`
+function getThumbSource(fileId, date) {
+    return `/api/thumb/${fileId}?v=${date}`
 }
 
 function isServerReachable() {
@@ -257,7 +258,7 @@ function startMobilePreview(idx) {
 
     const media = preview.getElementsByTagName('img')[0]
     const icon = preview.getElementsByTagName('span')[0]
-    startVideoPreview(vid, preview.id, media, icon)
+    startVideoPreview(vid, preview.id, preview.dataset.v, media, icon)
 }
 
 function stopVideoPreview(vid, id, media, icon) {
@@ -270,7 +271,7 @@ function stopVideoPreview(vid, id, media, icon) {
     icon.classList.remove('fade')
 }
 
-function startVideoPreview(vid, file, media, icon) {
+function startVideoPreview(vid, fileId, lastModified, media, icon) {
     icon.classList.add('blink')
     vid.addEventListener(
         'playing',
@@ -282,14 +283,14 @@ function startVideoPreview(vid, file, media, icon) {
     )
 
     if (needsVideoLoading(vid)) {
-        vid.src = getFileSource(file)
+        vid.src = getFileSource(fileId, lastModified)
         vid.load()
     }
 
     vid.classList.remove('fade')
     media.classList.add('fade')
 
-    onVideoPlay(file.id)
+    onVideoPlay(fileId)
     vid.currentTime = 0
     vid.play().catch(err => console.log('Play interrupted:', err))
 }
