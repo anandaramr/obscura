@@ -29,30 +29,48 @@ npx @anandaramr/obscura [directory]
 
 ## Usage
 
-To spin up Obscura, pass the path to your media gallery folder as the default argument:
+### Starting the server
 
 ```bash
-obscura /path/to/your/media/gallery
+obscura [directory] [options]
 ```
 
-### CLI Command Options
-
-You can fully customize how the server binds, hosts, and reads from disk using flag configurations:
+Serves the specified directory (defaults to the current directory). Open the displayed URL on any device in your local network to browse the gallery.
 
 ```bash
-Usage: obscura [options] [directory]
+obscura /path/to/media
+obscura -p 8080                           # custom port
+obscura -a 192.168.1.10 /path/to/media    # bind to specific interface
+```
 
-Lightweight self-hosted media gallery server for local networks
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-a, --address <ip>` | Address to bind to | `0.0.0.0` |
+| `-p, --port <number>` | Port to listen on | `4963` |
+| `--disk-concurrency <number>` | Max concurrent disk operations | `3` |
+| `-v, --version` | Print version | |
+| `-h, --help` | Show help | |
 
-Arguments:
-  directory                    Directory to serve (default: ".")
+### Indexing a directory
 
-Options:
-  -v, --version                output the version number
-  -a, --address <ip>           Address to bind to (default: "0.0.0.0")
-  -p, --port <number>          Port to listen to (default: "4963")
-  --disk-concurrency <number>  Maximum number of concurrent disk operations (default: "3")
-  -h, --help                   display help for command
+Pre-build the cache for a directory. Useful for large libraries.
+
+```bash
+obscura index /path/to/media
+obscura index /path/to/media --refresh   # rebuild, overwriting existing cache
+```
+
+| Flag | Description |
+|------|-------------|
+| `-r, --refresh` | Overwrite existing cache entries |
+
+### Managing the cache
+
+Inspect and manage the application cache.
+
+```bash
+obscura cache stats   # show cache size and storage statistics
+obscura cache clean   # delete all cached data
 ```
 
 ## Environment Variables
