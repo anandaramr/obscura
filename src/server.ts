@@ -69,11 +69,10 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
         return { id, name, type, date, size, isAnimated }
     }
 
-    function insertToSortedFiles(file: FileMetaData) {
-        const clientFile = toClientFile(file)
+    function insertToSortedFiles(file: ClientFileMetadata) {
         insertSorted(
             sortedFiles,
-            clientFile,
+            file,
             file => new Date(file.date).getTime(),
             (a, b) => b - a
         )
@@ -81,17 +80,18 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
 
     let isBooting = true
     watcher.on("add", async filePath => {
-        const fileData = await parseFileMetadata(filePath)
-        if (!fileData) return
+        const file = await parseFileMetadata(filePath)
+        if (!file) return
 
-        const isExisting = filesMap.has(fileData.id)
-        filesMap.set(fileData.id, fileData)
+        const isExisting = filesMap.has(file.id)
+        filesMap.set(file.id, file)
 
         if (isExisting) return
-        insertToSortedFiles(fileData)
+        const clientFile = toClientFile(file)
+        insertToSortedFiles(clientFile)
 
         if (isBooting) return
-        broadcastToUsers("add", fileData)
+        broadcastToUsers("add", clientFile)
     })
 
     watcher.on("change", async filePath => {
@@ -99,11 +99,12 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
         if (!file) return
 
         sortedFiles = sortedFiles.filter(f => f.id !== file.id)
-        insertToSortedFiles(file)
+        const clientFile = toClientFile(file)
+        insertToSortedFiles(clientFile)
 
         try {
             await refreshThumbnail(file)
-            broadcastToUsers("update", file)
+            broadcastToUsers("update", clientFile)
         } catch (err) {
             console.error(`Error while updating file metadat change: ${err}`)
         }
@@ -112,14 +113,16 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
     watcher.on("unlink", filePath => {
         const fileId = generateHash(filePath)
 
-        if (filesMap.has(fileId)) {
-            filesMap.delete(fileId)
-            sortedFiles = sortedFiles.filter(file => file.id !== fileId)
-            broadcastToUsers("remove", { id: fileId })
+        const file = filesMap.get(fileId)
+        if (!file) return
+        
+        filesMap.delete(fileId)
+        sortedFiles = sortedFiles.filter(file => file.id !== fileId)
+        const clientFile = toClientFile(file)
+        broadcastToUsers("remove", clientFile)
 
-            const thumbPath = getThumbPath(fileId)
-            fs.unlink(thumbPath, () => {})
-        }
+        const thumbPath = getThumbPath(fileId)
+        fs.unlink(thumbPath, () => {})
     })
 
     watcher.on("ready", () => {
