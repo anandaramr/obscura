@@ -17,12 +17,28 @@ import type { ClientFileMetadata, FileMetaData, ServerConfig, SseClient } from "
 import { getThumbPath, THUMBS_DIR, shouldAvoidCaching } from "./cache.js"
 import { PROJECT_ROOT } from "./config.js"
 
-function createApp() {
+function createApp(config: ServerConfig) {
     const app = express()
     app.use(express.json())
-    app.use(logger())
     app.use(cors())
+
+    if (config.logType === "all") {
+        app.use(logger())
+    }
+
     app.use(express.static(path.join(PROJECT_ROOT, "public")))
+    
+    if (config.logType === "minimal") {
+        const skip = (url: string) => {
+            return (
+                url.startsWith("/api/events") ||
+                url.startsWith("/api/thumb") ||
+                /^\/(?!api)/.test(url)
+            )
+        }
+        app.use(logger((req, _) => skip(req.url ?? "")))
+    }
+
     return app
 }
 
@@ -110,7 +126,7 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
         isBooting = false
     })
 
-    const app = createApp()
+    const app = createApp(config)
 
     app.get("/api/files", (req, res) => {
         res.status(200).json(sortedFiles)
@@ -222,7 +238,9 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
 
             resolve(() => {
                 return new Promise(res => {
-                    watcher.close().then(() => server.close(() => res()))
+                    watcher.close()
+                    server.closeAllConnections()
+                    server.close(() => res())
                 })
             })
         })
@@ -233,5 +251,3 @@ function logAddress(addr: string, port: number, name?: string) {
     const url = `http://${addr}:${port}`
     console.log(`- \x1b[36m${url.padEnd(30)}\x1b[0m ${name ? "[" + name + "]" : ""}`)
 }
-
-

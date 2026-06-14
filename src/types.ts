@@ -34,6 +34,7 @@ export interface ServerConfig {
     imgCacheThreshold: number
     diskConcurrency: number
     ffmpegPath: string
+    logType: LogType
 }
 
 export interface DefaultConfig {
@@ -50,3 +51,7 @@ export interface DefaultConfig {
 export interface IndexOpts {
     refresh: boolean
 }
+
+export const logTypes = ["all", "minimal", "none"] as const
+export const defaultLogType: LogType = "minimal"
+export type LogType = (typeof logTypes)[number]

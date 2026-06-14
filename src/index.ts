@@ -5,7 +5,7 @@ dotenv.config({ quiet: true })
 
 import path from "path"
 import pLimit from "p-limit"
-import { Command } from "commander"
+import { Command, Option } from "commander"
 
 import manifest from "../package.json" with { type: "json" }
 import {
@@ -17,6 +17,7 @@ import {
     parsePort,
     PROJECT_ROOT
 } from "./config.js"
+import { defaultLogType, logTypes } from "./types.js"
 
 import startServer from "./server.js"
 import {
@@ -52,6 +53,11 @@ program
         "Maximum number of concurrent disk operations",
         process.env.DISK_CONCURRENCY ?? defaults.DISK_CONCURRENCY.toString()
     )
+    .addOption(
+        new Option("-l, --log-requests <level>", "Requests to be logged")
+            .choices(logTypes)
+            .default(defaultLogType)
+    )
     .action(async (directory, options) => {
         const galleryDir = parseDirectory(directory)
         const port = parsePort(options.port)
@@ -67,15 +73,19 @@ program
                 thumbSize: defaults.THUMB_SIZE,
                 imgCacheThreshold: defaults.IMG_CACHE_THRESHOLD,
                 diskConcurrency: diskConcurrency,
-                ffmpegPath: ffmpegPath
+                ffmpegPath: ffmpegPath,
+                logType: options.logRequests
             }
 
             const close = await startServer(config)
 
-            process.on("SIGINT", async () => {
+            const shutdown = async () => {
                 await close()
                 process.exit(0)
-            })
+            }
+
+            process.on("SIGINT", shutdown)
+            process.on("SIGTERM", shutdown)
         } catch (error) {
             console.error(`\x1b[31m[Obscura Startup Error]`)
             console.error(`> ${error}\x1b[0m`)
