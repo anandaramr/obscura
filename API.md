@@ -89,5 +89,21 @@ Opens a server-sent events stream. Emits an event whenever a file is added or re
 `remove` — emitted when a file is removed from the gallery directory.
 
 ```json
-{ "action": "remove", "file": { "id": "4186824008a4299b7587c6902d00e6df" } }
+{
+    "action": "remove",
+    "file": {
+        // ...
+    }
+}
+```
+
+`update` — emitted when a file is modified.
+
+```json
+{
+    "action": "update",
+    "file": {
+        // ...
+    }
+}
 ```

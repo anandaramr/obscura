@@ -43,13 +43,14 @@ obscura -p 8080                           # custom port
 obscura -a 192.168.1.10 /path/to/media    # bind to specific interface
 ```
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-a, --address <ip>` | Address to bind to | `0.0.0.0` |
-| `-p, --port <number>` | Port to listen on | `4963` |
-| `--disk-concurrency <number>` | Max concurrent disk operations | `3` |
-| `-v, --version` | Print version | |
-| `-h, --help` | Show help | |
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--address <ip>` | `-a` | Address to bind to | `0.0.0.0` |
+| `--port <number>` | `-p` | Port to listen on | `4963` |
+| `--disk-concurrency <number>` | | Max concurrent disk operations | `3` |
+| `--log-requests <level>` | `-l` | Log level for requests | `minimal` |
+| `--version` | `-v` | Print version | |
+| `--help` | `-h` | Show help | |
 
 ### Indexing a directory
 
@@ -60,9 +61,9 @@ obscura index /path/to/media
 obscura index /path/to/media --refresh   # rebuild, overwriting existing cache
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-r, --refresh` | Overwrite existing cache entries |
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--refresh`| `-r` | Overwrite existing cache entries |
 
 ### Managing the cache
 
