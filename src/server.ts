@@ -16,6 +16,7 @@ import type { ClientFileMetadata, FileMetaData, ServerConfig, SseClient } from "
 
 import { getThumbPath, THUMBS_DIR, shouldAvoidCaching } from "./cache.js"
 import { PROJECT_ROOT } from "./config.js"
+import { ZipArchive } from "archiver"
 
 function createApp(config: ServerConfig) {
     const app = express()
@@ -27,7 +28,7 @@ function createApp(config: ServerConfig) {
     }
 
     app.use(express.static(path.join(PROJECT_ROOT, "public")))
-    
+
     if (config.logType === "minimal") {
         const skip = (url: string) => {
             return (
@@ -115,7 +116,7 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
 
         const file = filesMap.get(fileId)
         if (!file) return
-        
+
         filesMap.delete(fileId)
         sortedFiles = sortedFiles.filter(file => file.id !== fileId)
         const clientFile = toClientFile(file)
@@ -165,6 +166,26 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
             console.error(err)
             res.sendStatus(500)
         }
+    })
+
+    app.get("/api/download", (_, res) => {
+        const start = performance.now()
+
+        const archiver = new ZipArchive({ zlib: { level: 0 } })
+        res.setHeader("Content-Type", "application/zip")
+        res.setHeader("Content-Disposition", "attachment; filename=media.zip")
+        archiver.pipe(res)
+        
+        const files = [...filesMap.values()]
+        files.forEach(file => {
+            const stream = fs.createReadStream(file.path)
+            archiver.append(stream, { name: file.name })
+        })
+
+        archiver.finalize()
+        res.on("finish", () => {
+            console.log(`Download finished in ${((performance.now() - start) / 1000).toFixed(3)}s`)
+        })
     })
 
     async function getOrCreateThumbnail(file: FileMetaData): Promise<string> {
