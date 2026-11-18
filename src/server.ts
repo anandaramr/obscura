@@ -58,11 +58,13 @@ export default function startServer(config: ServerConfig): Promise<() => Promise
         ignoreInitial: false
     })
 
-    let clients: SseClient[] = []
-    function broadcastToUsers(action: string, fileData: Partial<ClientFileMetadata>) {
-        clients.forEach(client => {
-            client.res.write(`data: ${JSON.stringify({ action, file: fileData })}\n\n`)
-        })
+    let clients: SseClient[] = [];
+    function broadcastToUsers(action: string, fileData: ClientFileMetadata) {
+        clients.forEach((client) => {
+            client.res.write(
+                `data: ${JSON.stringify({ action, file: fileData })}\n\n`,
+            );
+        });
     }
 
     function toClientFile(file: FileMetaData): ClientFileMetadata {

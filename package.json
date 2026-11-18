@@ -17,8 +17,8 @@
     "README.md"
   ],
   "scripts": {
-    "dev": "tsx watch src/index.ts --log-requests all",
-    "build": "tsc",
+    "dev": "concurrently \"tsx watch src/index.ts --log-requests all\" \"vite\"",
+    "build": "tsc && vite build",
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build",
     "watch": "tsc --watch"
@@ -44,7 +44,9 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.9.1",
     "@types/sharp": "^0.31.1",
+    "concurrently": "^10.0.7",
     "tsx": "^4.22.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.3.8"
   }
 }
