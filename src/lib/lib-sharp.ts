@@ -1,6 +1,6 @@
-import libSharp from "sharp"
+import libSharp from "sharp";
 
 // Avoids keeping files open unnecessarily
-libSharp.cache(false)
+libSharp.cache(false);
 
-export default libSharp
+export default libSharp;

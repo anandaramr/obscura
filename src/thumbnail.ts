@@ -1,9 +1,14 @@
-import type { FileMetaData } from "./types.js"
+import type { FileMetaData } from "./types.js";
 
-import { execFile } from "child_process"
-import libSharp from "./lib/lib-sharp.js"
+import { execFile } from "child_process";
+import libSharp from "./lib/lib-sharp.js";
 
-export function generateVideoThumbnail(ffmpegPath: string, file: FileMetaData, thumbPath: string, thumbSize: number) {
+export function generateVideoThumbnail(
+    ffmpegPath: string,
+    file: FileMetaData,
+    thumbPath: string,
+    thumbSize: number,
+) {
     return new Promise<void>((resolve, reject) => {
         execFile(
             ffmpegPath,
@@ -22,17 +27,21 @@ export function generateVideoThumbnail(ffmpegPath: string, file: FileMetaData, t
             ],
             (err, _stdout, _stderr) => {
                 if (err) {
-                    return reject(new Error(`ffmpeg error: ${err.message}`))
+                    return reject(new Error(`ffmpeg error: ${err.message}`));
                 }
-                resolve()
+                resolve();
             },
-        )
-    })
+        );
+    });
 }
 
-export async function generateImageThumbnail(file: FileMetaData, thumbPath: string, thumbSize: number) {
+export async function generateImageThumbnail(
+    file: FileMetaData,
+    thumbPath: string,
+    thumbSize: number,
+) {
     await libSharp(file.path, { animated: false, page: 0 })
         .resize(thumbSize, thumbSize, { fit: "cover" })
         .jpeg({ quality: 80 })
-        .toFile(thumbPath)
+        .toFile(thumbPath);
 }

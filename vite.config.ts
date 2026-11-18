@@ -2,8 +2,8 @@ import { defineConfig, loadEnv } from "vite";
 import { defaults } from "./src/config.ts";
 
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, process.cwd(), '')
-    const apiPort = env.PORT ?? defaults.PORT
+    const env = loadEnv(mode, process.cwd(), "");
+    const apiPort = env.PORT ?? defaults.PORT;
     return {
         publicDir: "public",
         root: "client",

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import dotenv from "dotenv"
-dotenv.config({ quiet: true })
+import dotenv from "dotenv";
+dotenv.config({ quiet: true });
 
-import path from "path"
-import pLimit from "p-limit"
-import { Command, Option } from "commander"
+import path from "path";
+import pLimit from "p-limit";
+import { Command, Option } from "commander";
 
-import manifest from "../package.json" with { type: "json" }
+import manifest from "../package.json" with { type: "json" };
 import {
     defaults,
     getFfmpegPath,
@@ -15,55 +15,65 @@ import {
     parseDirectory,
     parseDiskConcurrency,
     parsePort,
-    PROJECT_ROOT
-} from "./config.js"
-import { defaultLogType, logTypes } from "./types.js"
+    PROJECT_ROOT,
+} from "./config.js";
+import { defaultLogType, logTypes } from "./types.js";
 
-import startServer from "./server.js"
+import startServer from "./server.js";
 import {
     emptyCache,
     getCacheSize,
     THUMBS_DIR,
     shouldAvoidCaching,
     getThumbPath,
-    isAlreadyCached
-} from "./cache.js"
-import { bytesToString } from "./utils.js"
-import { getFiles } from "./file.js"
-import { generateImageThumbnail, generateVideoThumbnail } from "./thumbnail.js"
-import type { FileMetaData, IndexOpts, ServerConfig } from "./types.js"
+    isAlreadyCached,
+} from "./cache.js";
+import { bytesToString } from "./utils.js";
+import { getFiles } from "./file.js";
+import { generateImageThumbnail, generateVideoThumbnail } from "./thumbnail.js";
+import type { FileMetaData, IndexOpts, ServerConfig } from "./types.js";
 
-const program = new Command()
+const program = new Command();
 
 program
     .name("obscura")
-    .description("Lightweight self-hosted media gallery server for local networks")
-    .version(manifest.version, "-v, --version", "output the version number")
+    .description(
+        "Lightweight self-hosted media gallery server for local networks",
+    )
+    .version(manifest.version, "-v, --version", "output the version number");
 
 program
-    .argument("[directory]", "Directory to serve", process.env.DIRECTORY ?? defaults.DIRECTORY)
-    .option("-a, --address <ip>", "Address to bind to", process.env.ADDRESS ?? defaults.ADDRESS)
+    .argument(
+        "[directory]",
+        "Directory to serve",
+        process.env.DIRECTORY ?? defaults.DIRECTORY,
+    )
+    .option(
+        "-a, --address <ip>",
+        "Address to bind to",
+        process.env.ADDRESS ?? defaults.ADDRESS,
+    )
     .option(
         "-p, --port <number>",
         "Port to listen to",
-        process.env.PORT ?? defaults.PORT.toString()
+        process.env.PORT ?? defaults.PORT.toString(),
     )
     .option(
         "--disk-concurrency <number>",
         "Maximum number of concurrent disk operations",
-        process.env.DISK_CONCURRENCY ?? defaults.DISK_CONCURRENCY.toString()
+        process.env.DISK_CONCURRENCY ?? defaults.DISK_CONCURRENCY.toString(),
     )
     .addOption(
         new Option("-l, --log-requests <level>", "Requests to be logged")
             .choices(logTypes)
-            .default(defaultLogType)
+            .default(defaultLogType),
     )
     .action(async (directory, options) => {
-        const galleryDir = parseDirectory(directory)
-        const port = parsePort(options.port)
-        const diskConcurrency = parseDiskConcurrency(options.diskConcurrency)
-        const address = parseAddress(options.address)
-        const ffmpegPath = await getFfmpegPath()
+        const galleryDir = parseDirectory(directory);
+        const port = parsePort(options.port);
+        const diskConcurrency = parseDiskConcurrency(options.diskConcurrency);
+        const address = parseAddress(options.address);
+        const ffmpegPath = await getFfmpegPath();
 
         try {
             const config: ServerConfig = {
@@ -74,48 +84,50 @@ program
                 imgCacheThreshold: defaults.IMG_CACHE_THRESHOLD,
                 diskConcurrency: diskConcurrency,
                 ffmpegPath: ffmpegPath,
-                logType: options.logRequests
-            }
+                logType: options.logRequests,
+            };
 
-            const close = await startServer(config)
+            const close = await startServer(config);
 
             const shutdown = async () => {
-                await close()
-                process.exit(0)
-            }
+                await close();
+                process.exit(0);
+            };
 
-            process.on("SIGINT", shutdown)
-            process.on("SIGTERM", shutdown)
+            process.on("SIGINT", shutdown);
+            process.on("SIGTERM", shutdown);
         } catch (error) {
-            console.error(`\x1b[31m[Obscura Startup Error]`)
-            console.error(`> ${error}\x1b[0m`)
-            process.exit(1)
+            console.error(`\x1b[31m[Obscura Startup Error]`);
+            console.error(`> ${error}\x1b[0m`);
+            process.exit(1);
         }
-    })
+    });
 
-const cache = program.command("cache").description("Manage and inspect the application cache")
+const cache = program
+    .command("cache")
+    .description("Manage and inspect the application cache");
 
 cache
     .command("stats")
     .description("Show cache usage and storage statistics")
     .action(async () => {
-        console.log(`Cache directory: \x1b[36m${THUMBS_DIR}\x1b[0m`)
+        console.log(`Cache directory: \x1b[36m${THUMBS_DIR}\x1b[0m`);
 
-        const cacheSize = await getCacheSize()
-        console.log(`Cache size: ${bytesToString(cacheSize)}`)
-    })
+        const cacheSize = await getCacheSize();
+        console.log(`Cache size: ${bytesToString(cacheSize)}`);
+    });
 
 cache
     .command("clean")
     .description("Clear the cache directory")
     .action(async () => {
         try {
-            const clearedBytes = await emptyCache()
-            console.log(`Cache cleaned (Freed ${bytesToString(clearedBytes)})`)
+            const clearedBytes = await emptyCache();
+            console.log(`Cache cleaned (Freed ${bytesToString(clearedBytes)})`);
         } catch (e) {
-            console.log(`Error encountered: ${e}`)
+            console.log(`Error encountered: ${e}`);
         }
-    })
+    });
 
 program
     .command("index")
@@ -123,102 +135,113 @@ program
     .argument("[directory]", "Directory to be indexed", ".")
     .option("-r, --refresh", "Overwrite existing cache")
     .action(async (dir, options) => {
-        const directory = path.resolve(PROJECT_ROOT, dir)
+        const directory = path.resolve(PROJECT_ROOT, dir);
         const diskConcurrency = parseDiskConcurrency(
-            process.env.DISK_CONCURRENCY || String(defaults.DISK_CONCURRENCY)
-        )
-        const limit = pLimit(diskConcurrency)
-        const start = Date.now()
+            process.env.DISK_CONCURRENCY || String(defaults.DISK_CONCURRENCY),
+        );
+        const limit = pLimit(diskConcurrency);
+        const start = Date.now();
 
-        const throttled = createThrottler(500, 500)
-        let files = await getFiles(directory, scanned => {
-            throttled(() => process.stdout.write(`\x1b[2KScanned ${scanned} files\r`))
-        })
-        const totalFiles = files.length
+        const throttled = createThrottler(500, 500);
+        let files = await getFiles(directory, (scanned) => {
+            throttled(() =>
+                process.stdout.write(`\x1b[2KScanned ${scanned} files\r`),
+            );
+        });
+        const totalFiles = files.length;
 
-        files = files.filter(f => !shouldAvoidCaching(f, defaults.IMG_CACHE_THRESHOLD))
-        const filesToBeCached = files.length
+        files = files.filter(
+            (f) => !shouldAvoidCaching(f, defaults.IMG_CACHE_THRESHOLD),
+        );
+        const filesToBeCached = files.length;
 
         process.stdout.write(
-            `\x1b[2KFound ${totalFiles} files (${filesToBeCached} to be cached)\n\n`
-        )
+            `\x1b[2KFound ${totalFiles} files (${filesToBeCached} to be cached)\n\n`,
+        );
 
-        let completed = 0
-        const ffmpegPath = await getFfmpegPath()
-        const writer = progressWriter(100)
-        const tasks = files.map(file =>
+        let completed = 0;
+        const ffmpegPath = await getFfmpegPath();
+        const writer = progressWriter(100);
+        const tasks = files.map((file) =>
             limit(async () => {
-                await cacheFile(file, ffmpegPath, { refresh: options.refresh })
-                completed++
-                writer(completed, filesToBeCached)
-            })
-        )
+                await cacheFile(file, ffmpegPath, { refresh: options.refresh });
+                completed++;
+                writer(completed, filesToBeCached);
+            }),
+        );
 
-        await Promise.all(tasks)
+        await Promise.all(tasks);
         process.stdout.write(
-            `\x1b[2K\x1b[2A\x1b[2K\nIndexed ${totalFiles} files from \x1b[36m${directory}\x1b[0m (${filesToBeCached} cached)\n`
-        )
+            `\x1b[2K\x1b[2A\x1b[2K\nIndexed ${totalFiles} files from \x1b[36m${directory}\x1b[0m (${filesToBeCached} cached)\n`,
+        );
 
-        const duration = (Date.now() - start) / 1000
-        console.log(`Completed in ${duration.toFixed(2)}s`)
-    })
+        const duration = (Date.now() - start) / 1000;
+        console.log(`Completed in ${duration.toFixed(2)}s`);
+    });
 
 function progressWriter(interval: number) {
-    let lastWriteTime = 0
-    let lastValue = 0
-    const INFINITY_SYMBOL = `\u221e`
+    let lastWriteTime = 0;
+    let lastValue = 0;
+    const INFINITY_SYMBOL = `\u221e`;
 
     return (current: number, total: number) => {
-        const now = Date.now()
-        if (now - lastWriteTime < interval) return
+        const now = Date.now();
+        if (now - lastWriteTime < interval) return;
 
-        const perc = Math.round((current / total) * 100)
-        const rate = (current - lastValue) / (now - lastWriteTime)
+        const perc = Math.round((current / total) * 100);
+        const rate = (current - lastValue) / (now - lastWriteTime);
         const eta =
             rate !== 0 && lastValue > 3
                 ? ((total - current) / (rate * 1000)).toFixed(2) + "s"
-                : INFINITY_SYMBOL
+                : INFINITY_SYMBOL;
 
-        const width = 30
-        const bars = Math.floor((width * current) / total)
-        const progressBar = `[${"#".repeat(bars).padEnd(width)}]`
+        const width = 30;
+        const bars = Math.floor((width * current) / total);
+        const progressBar = `[${"#".repeat(bars).padEnd(width)}]`;
 
-        process.stdout.write(`\x1b[2K${progressBar} ${current}/${total} (${perc}%) | ETA ${eta}\r`)
-        lastWriteTime = now
-        lastValue = current
-    }
+        process.stdout.write(
+            `\x1b[2K${progressBar} ${current}/${total} (${perc}%) | ETA ${eta}\r`,
+        );
+        lastWriteTime = now;
+        lastValue = current;
+    };
 }
 
 function createThrottler(interval: number, delay: number) {
-    let lastUpdate = 0
-    let start: number | undefined = undefined
+    let lastUpdate = 0;
+    let start: number | undefined = undefined;
 
     return (cb: () => void) => {
-        const now = Date.now()
-        if (!start) start = now
-        if (now - lastUpdate < interval) return
-        if (now - start < delay) return
+        const now = Date.now();
+        if (!start) start = now;
+        if (now - lastUpdate < interval) return;
+        if (now - start < delay) return;
 
-        cb()
-        lastUpdate = now
-    }
+        cb();
+        lastUpdate = now;
+    };
 }
 
 async function cacheFile(
     file: FileMetaData,
     ffmpegPath: string,
-    opts: IndexOpts = { refresh: false }
+    opts: IndexOpts = { refresh: false },
 ) {
-    const thumbPath = getThumbPath(file.id)
+    const thumbPath = getThumbPath(file.id);
 
     // Skip already cached files unless in refresh mode
-    if (!opts.refresh && isAlreadyCached(file.id)) return
+    if (!opts.refresh && isAlreadyCached(file.id)) return;
 
     if (file.type === "image") {
-        await generateImageThumbnail(file, thumbPath, defaults.THUMB_SIZE)
+        await generateImageThumbnail(file, thumbPath, defaults.THUMB_SIZE);
     } else {
-        await generateVideoThumbnail(ffmpegPath, file, thumbPath, defaults.THUMB_SIZE)
+        await generateVideoThumbnail(
+            ffmpegPath,
+            file,
+            thumbPath,
+            defaults.THUMB_SIZE,
+        );
     }
 }
 
-program.parse(process.argv)
+program.parse(process.argv);

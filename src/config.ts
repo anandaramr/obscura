@@ -1,13 +1,13 @@
-import { InvalidArgumentError, InvalidOptionArgumentError } from "commander"
-import path from "path"
-import { validateDirectory } from "./file.js"
-import net from "net"
-import type { DefaultConfig } from "./types.js"
-import { fileURLToPath } from "node:url"
-import { getFfmpegStaticPath } from "./lib/lib-ffmpeg.js"
+import { InvalidArgumentError, InvalidOptionArgumentError } from "commander";
+import path from "path";
+import { validateDirectory } from "./file.js";
+import net from "net";
+import type { DefaultConfig } from "./types.js";
+import { fileURLToPath } from "node:url";
+import { getFfmpegStaticPath } from "./lib/lib-ffmpeg.js";
 
-const __filename = fileURLToPath(import.meta.url)
-export const PROJECT_ROOT = path.resolve(path.dirname(__filename), "..")
+const __filename = fileURLToPath(import.meta.url);
+export const PROJECT_ROOT = path.resolve(path.dirname(__filename), "..");
 
 export const defaults: DefaultConfig = {
     DIRECTORY: ".",
@@ -17,43 +17,47 @@ export const defaults: DefaultConfig = {
 
     THUMB_SIZE: 400,
     IMG_CACHE_THRESHOLD: 1024 * 1024,
-    DISK_CONCURRENCY: 3
-}
+    DISK_CONCURRENCY: 3,
+};
 
 export function parsePort(p: string) {
-    const port = Number(p)
+    const port = Number(p);
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
-        throw new InvalidOptionArgumentError(`Port should be a number between 1 and 65535`)
+        throw new InvalidOptionArgumentError(
+            `Port should be a number between 1 and 65535`,
+        );
     }
-    return port
+    return port;
 }
 
 export function parseDiskConcurrency(conc: string) {
-    const diskConcurrency = Number(conc)
+    const diskConcurrency = Number(conc);
     if (!Number.isInteger(diskConcurrency) || diskConcurrency < 1) {
-        throw new InvalidOptionArgumentError(`Disk concurrency should be a number > 0`)
+        throw new InvalidOptionArgumentError(
+            `Disk concurrency should be a number > 0`,
+        );
     }
-    return diskConcurrency
+    return diskConcurrency;
 }
 
 export function parseDirectory(dir: string) {
-    const galleryDir = path.resolve(process.cwd(), dir)
-    const { error } = validateDirectory(galleryDir)
+    const galleryDir = path.resolve(process.cwd(), dir);
+    const { error } = validateDirectory(galleryDir);
     if (error) {
-        throw new InvalidArgumentError(error)
+        throw new InvalidArgumentError(error);
     }
-    return galleryDir
+    return galleryDir;
 }
 
 export function parseAddress(ip: string) {
     if (!ip || (!net.isIPv4(ip) && ip !== "localhost")) {
         throw new InvalidOptionArgumentError(
-            `Invalid IP address \"${ip}\". Should be an IPv4 address`
-        )
+            `Invalid IP address \"${ip}\". Should be an IPv4 address`,
+        );
     }
-    return ip
+    return ip;
 }
 
 export async function getFfmpegPath() {
-    return process.env.FFMPEG_PATH || getFfmpegStaticPath()
+    return process.env.FFMPEG_PATH || getFfmpegStaticPath();
 }
