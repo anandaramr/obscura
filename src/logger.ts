@@ -61,6 +61,10 @@ morgan.token("device", (req) => {
     return name;
 });
 
+const format = morgan.compile(
+    "[:date[web]] :coloured-method :url :coloured-status :response-time ms — :client-ip (:device)",
+);
+
 export default (
     skip: (
         req: IncomingMessage,
@@ -68,7 +72,7 @@ export default (
     ) => boolean = () => false,
 ) => {
     return morgan(
-        "[:date[web]] :coloured-method :url :coloured-status :response-time ms — :client-ip (:device)",
+        (tokens, req, res) => format(tokens, req, res)?.replace(/\\u001b/g, "\x1b"),
         { skip },
     );
 };
